@@ -30,7 +30,7 @@ Catatan pihak ketiga: audio dan teks diproses oleh Google (Gemini) dan provider 
 ## 4. Kontrol akses
 
 - **RLS aktif di semua tabel.** Rangkumannya ada di [architecture.md §7](architecture.md#7-rls-ringkas).
-- **Rahasia skenario.** Tabel `scenario_facts` dan `rubrics` **tidak bisa dibaca** oleh pelajar lewat API apa pun. Fakta yang terlewat di laporan hanya ditampilkan setelah tenggat lewat, lewat view server-side.
+- **Rahasia skenario.** Draf (`scenarios.draft`) dan `scenario_version_secrets` (persona, fakta, rubrik) **tidak bisa dibaca** oleh pelajar maupun pengajar lain lewat API apa pun (diuji pgTAP `m2_scenarios`). Fakta yang terlewat di laporan hanya ditampilkan setelah tenggat lewat, lewat view server-side.
 - **Persetujuan Pengajar.** Role `pengajar` hasil pendaftaran mandiri statusnya `pending` sampai disetujui Admin.
 - **Batas akun massal.** Akun massal dibatasi untuk kelas milik Pengajar itu. Password awal dibuat acak (12 karakter), hanya ditampilkan atau diunduh sekali, dan pelajar wajib menggantinya saat login pertama.
 

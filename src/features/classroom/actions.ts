@@ -9,6 +9,7 @@ import { usernameToEmail } from "@/features/auth/identifier";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { generateInitialPassword, parseStudentCsv } from "./bulk-students";
+import { toDueInstant } from "./due-date";
 
 const className = z.string().trim().min(1, "Nama kelas wajib diisi").max(80, "Maksimal 80 karakter");
 
@@ -120,4 +121,50 @@ export async function bulkCreateStudents(_: BulkResult | undefined, form: FormDa
   rejected.sort((a, b) => a.line - b.line);
   revalidatePath(`/kelas/${classId.data}`);
   return { created, rejected };
+}
+
+const assignmentInput = z.object({
+  classId: z.uuid(),
+  versionId: z.uuid("Pilih skenario"),
+  // <input type="datetime-local"> sends local wall time; the browser's offset comes alongside it.
+  dueLocal: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/).or(z.literal("")),
+  tzOffsetMin: z.coerce.number().int().min(-840).max(840),
+  durationMin: z.coerce.number().int().min(5, "Durasi 5–60 menit").max(60, "Durasi 5–60 menit"),
+  maxAttempts: z.coerce.number().int().min(1, "Percobaan 1–10").max(10, "Percobaan 1–10"),
+});
+
+/** US-G-06: give a published scenario version to a class (the version is a snapshot). */
+export async function createAssignment(_: FormState, form: FormData): Promise<FormState> {
+  await requireUser({ roles: ["pengajar"] });
+  const parsed = assignmentInput.safeParse(Object.fromEntries(form));
+  if (!parsed.success) {
+    const fe: Record<string, string> = {};
+    for (const i of parsed.error.issues) fe[String(i.path[0])] ??= i.message;
+    return { fieldErrors: fe };
+  }
+  const { classId, versionId, dueLocal, tzOffsetMin, durationMin, maxAttempts } = parsed.data;
+  const dueAt = toDueInstant(dueLocal, tzOffsetMin);
+  if (dueAt && Date.parse(dueAt) < Date.now()) return { fieldErrors: { dueLocal: "Tenggat sudah lewat" } };
+
+  const supabase = await createClient();
+  // RLS: owner of the class, and the version is theirs or in the public library.
+  const { error } = await supabase.from("assignments").insert({
+    class_id: classId,
+    scenario_version_id: versionId,
+    due_at: dueAt,
+    duration_min: durationMin,
+    max_attempts: maxAttempts,
+  });
+  if (error) return { error: "Tugas gagal dibuat." };
+  revalidatePath(`/kelas/${classId}`);
+  return { ok: "Tugas diberikan." };
+}
+
+export async function deleteAssignment(form: FormData): Promise<void> {
+  await requireUser({ roles: ["pengajar"] });
+  const id = z.uuid().parse(form.get("id"));
+  const classId = z.uuid().parse(form.get("classId"));
+  const supabase = await createClient();
+  await supabase.from("assignments").delete().eq("id", id); // RLS: class owner only
+  revalidatePath(`/kelas/${classId}`);
 }
