@@ -316,6 +316,7 @@ Jangan menyatakan "CI hijau" kalau CI yang diperiksa bukan untuk HEAD saat ini.
   test(db): tambah pgTAP RLS untuk class_members
   ```
 
+- **Jangan menambahkan footer AI** (`Co-Authored-By: Claude …`, "Generated with …", atau sejenisnya) di pesan commit.
 - Satu commit = satu concern logis. Jangan mencampur refactor yang tidak terkait.
 - Commit body dipakai untuk menjelaskan alasan atau constraint yang tidak terlihat dari diff.
 - Stage file secara eksplisit kalau working tree berisi perubahan yang tidak terkait.
