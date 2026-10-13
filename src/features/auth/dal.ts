@@ -13,6 +13,7 @@ export type CurrentUser = {
   displayName: string;
   username: string | null;
   mustChangePassword: boolean;
+  micConsentAt: string | null;
 };
 
 /** Verified identity (getClaims checks the JWT) + own profile row. Uncached: use in actions that change it. */
@@ -24,7 +25,7 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
 
   const { data: p } = await supabase
     .from("profiles")
-    .select("id, role, status, display_name, username, must_change_password")
+    .select("id, role, status, display_name, username, must_change_password, mic_consent_at")
     .eq("id", userId)
     .maybeSingle();
   if (!p) return null;
@@ -36,6 +37,7 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
     displayName: p.display_name,
     username: p.username,
     mustChangePassword: p.must_change_password,
+    micConsentAt: p.mic_consent_at,
   };
 }
 

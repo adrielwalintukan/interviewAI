@@ -1,0 +1,77 @@
+// Gemini Live over WebSocket with an ephemeral token. The token already carries the full setup
+// (persona, voice, transcription); the setup we send is ignored server-side (architecture §3.1).
+
+const ENDPOINT =
+  "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained";
+
+export type LiveHandlers = {
+  onReady: () => void;
+  onAudio: (b64: string) => void;
+  onInputText: (text: string) => void;
+  onOutputText: (text: string) => void;
+  onTurnComplete: () => void;
+  onInterrupted: () => void;
+  onClose: (info: { code: number; reason: string; ready: boolean }) => void;
+};
+
+type ServerMessage = {
+  setupComplete?: unknown;
+  serverContent?: {
+    // modelTurn text parts are deliberately ignored: native-audio models put "thinking" there,
+    // which can reveal hidden facts. Only transcriptions reach the UI (spike 2026-10-14).
+    modelTurn?: { parts?: { inlineData?: { data: string; mimeType?: string } }[] };
+    inputTranscription?: { text?: string };
+    outputTranscription?: { text?: string };
+    turnComplete?: boolean;
+    interrupted?: boolean;
+  };
+  goAway?: unknown;
+};
+
+export class LiveConnection {
+  private ws: WebSocket;
+  private ready = false;
+
+  constructor(token: string, model: string, private h: LiveHandlers) {
+    this.ws = new WebSocket(`${ENDPOINT}?access_token=${encodeURIComponent(token)}`);
+    this.ws.onopen = () => this.ws.send(JSON.stringify({ setup: { model } }));
+    this.ws.onmessage = async (ev) => {
+      const raw = typeof ev.data === "string" ? ev.data : await (ev.data as Blob).text();
+      let msg: ServerMessage;
+      try {
+        msg = JSON.parse(raw);
+      } catch {
+        return;
+      }
+      if (msg.setupComplete !== undefined) {
+        this.ready = true;
+        h.onReady();
+      }
+      const sc = msg.serverContent;
+      if (!sc) return;
+      for (const p of sc.modelTurn?.parts ?? []) if (p.inlineData?.data) h.onAudio(p.inlineData.data);
+      if (sc.inputTranscription?.text) h.onInputText(sc.inputTranscription.text);
+      if (sc.outputTranscription?.text) h.onOutputText(sc.outputTranscription.text);
+      if (sc.interrupted) h.onInterrupted();
+      if (sc.turnComplete) h.onTurnComplete();
+    };
+    this.ws.onclose = (ev) => h.onClose({ code: ev.code, reason: ev.reason, ready: this.ready });
+  }
+
+  get isOpen() {
+    return this.ws.readyState === WebSocket.OPEN && this.ready;
+  }
+
+  sendAudio(b64: string) {
+    if (this.isOpen) this.ws.send(JSON.stringify({ realtimeInput: { audio: { data: b64, mimeType: "audio/pcm;rate=16000" } } }));
+  }
+
+  sendText(text: string) {
+    if (this.isOpen) this.ws.send(JSON.stringify({ clientContent: { turns: [{ role: "user", parts: [{ text }] }], turnComplete: true } }));
+  }
+
+  close() {
+    this.ws.onclose = null;
+    this.ws.close();
+  }
+}

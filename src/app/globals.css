@@ -97,3 +97,39 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Stage (ruang wawancara), design-system §4 "masuk panggung" + spotlight. */
+@keyframes stage-enter {
+  from {
+    clip-path: circle(0% at 50% 60%);
+  }
+  to {
+    clip-path: circle(150% at 50% 60%);
+  }
+}
+@keyframes spot-flicker {
+  0%, 12% { opacity: 0; }
+  14% { opacity: 0.55; }
+  16% { opacity: 0.2; }
+  22%, 100% { opacity: 1; }
+}
+@utility stage-enter {
+  animation: stage-enter 900ms var(--ease-scene) both;
+}
+@utility spotlight {
+  background: radial-gradient(ellipse 55% 60% at 50% 42%, color-mix(in oklab, var(--color-spot) 16%, transparent), transparent 70%);
+  animation: spot-flicker 1400ms linear both;
+}
+/* Ring scales with --level (0..1) set per animation frame from the audio analyser. */
+@utility speaking-ring {
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -2.5rem;
+    border-radius: 9999px;
+    border: 1px solid color-mix(in oklab, var(--color-spot) 45%, transparent);
+    transform: scale(calc(1 + var(--level, 0) * 0.18));
+    opacity: calc(0.15 + var(--level, 0) * 0.85);
+    transition: transform 60ms linear, opacity 60ms linear;
+  }
+}

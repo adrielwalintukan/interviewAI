@@ -18,9 +18,9 @@ async function Editor({ params }: { params: PageProps<"/skenario/[id]">["params"
     // RLS: authors only.
     supabase
       .from("scenarios")
-      .select("id, title, draft, is_public, current:scenario_versions!scenarios_current_version_fk(version)")
+      .select("id, title, draft, is_public, current:scenario_versions!scenarios_current_version_fk(id, version)")
       .eq("id", id)
-      .maybeSingle<{ id: string; title: string; draft: unknown; is_public: boolean; current: { version: number } | null }>(),
+      .maybeSingle<{ id: string; title: string; draft: unknown; is_public: boolean; current: { id: string; version: number } | null }>(),
     supabase
       .from("characters")
       .select("id, name, occupation, age_range, gender, live_voice, portrait_hue")
@@ -40,7 +40,7 @@ async function Editor({ params }: { params: PageProps<"/skenario/[id]">["params"
         id={s.id}
         initialDraft={draftSchema.catch({}).parse(s.draft)}
         characters={characters ?? []}
-        published={s.current ? { version: s.current.version, isPublic: s.is_public } : null}
+        published={s.current ? { id: s.current.id, version: s.current.version, isPublic: s.is_public } : null}
       />
     </>
   );
