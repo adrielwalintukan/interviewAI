@@ -4,7 +4,7 @@
 
 Interview AI adalah platform latihan **wawancara elisitasi kebutuhan** untuk sekolah dan kampus. Pelajar mewawancarai karakter AI 3D yang memerankan klien, pemilik bisnis, atau mitra. Karakter ini berbicara dan bereaksi secara realtime. Di setiap skenario tersimpan **fakta tersembunyi**: makin dalam dan tepat pertanyaan pelajar, makin banyak fakta yang terbuka. Setelah sesi selesai, AI menilai transkrip memakai rubrik, lalu Pengajar mereview hasilnya.
 
-Status: **fase dokumentasi**. Belum ada kode aplikasi. Prototipe lama ada di `../AI Interview` (lihat [audit-legacy.md](docs/audit-legacy.md)).
+Status: **M0 — Fondasi** (lihat [roadmap](docs/roadmap.md)). Prototipe lama ada di `../AI Interview` (lihat [audit-legacy.md](docs/audit-legacy.md)).
 
 ## Indeks dokumen
 
@@ -34,14 +34,20 @@ Status: **fase dokumentasi**. Belum ada kode aplikasi. Prototipe lama ada di `..
 
 Detail dan alasannya ada di [architecture.md](docs/architecture.md) dan [decisions/](docs/decisions/).
 
-## Quickstart (rencana, setelah M0)
+## Quickstart
+
+Butuh Node.js 22. Isi `.env.local` dari `.env.example`.
 
 ```bash
-pnpm install
+npm install
 ```
 
 ```bash
-pnpm dev
+cp .env.example .env.local
+```
+
+```bash
+npm run dev
 ```
 
 ## Environment variables

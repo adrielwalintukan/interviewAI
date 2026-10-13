@@ -27,3 +27,4 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .history/
+*.pem

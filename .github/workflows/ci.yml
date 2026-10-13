@@ -1,0 +1,59 @@
+name: Continuous Integration
+
+on:
+  pull_request:
+    branches:
+      - development
+      - main
+  push:
+    branches:
+      - development
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app-quality-gate:
+    name: App Quality Gate & Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: TypeScript typecheck
+        run: npm run typecheck
+      - name: ESLint check
+        run: npm run lint
+      - name: Unit tests
+        run: npm test
+      # Server env is parsed lazily (src/lib/env.ts), so the build needs no secrets.
+      - name: Build production bundle
+        run: npm run build
+
+  database-quality-gate:
+    name: Database pgTAP & RLS Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.117.0
+      - name: Start Supabase local containers
+        run: supabase start
+      - name: Run pgTAP test suites
+        run: supabase test db
