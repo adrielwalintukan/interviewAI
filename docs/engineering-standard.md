@@ -51,6 +51,7 @@
 |---|---|---|
 | Unit | Logika murni | Hitung nilai terbaik, aturan percobaan/tenggat, pemetaan teks→viseme, parser CSV akun massal |
 | Integration | Route + DB lokal (Supabase CLI) | Pelajar A tidak bisa membaca sesi pelajar B (tes RLS), mulai sesi saat percobaan habis → 403 |
+| Database | pgTAP di `supabase/tests/*.test.sql` (`supabase test db`, jalan di CI) | Trigger signup, RLS `profiles`, pelajar tidak bisa mengubah role sendiri |
 | LLM contract | Gateway dengan mock HTTP | 9router 429 → fallback Gemini; JSON grader invalid → retry → fallback |
 | Prompt eval | Fixture transkrip (`tests/fixtures/transcripts/*.json`) | Transkrip "dangkal" dinilai < 50, transkrip "mendalam" > 80, transkrip injection ditandai |
 | E2E | Alur kritis | Daftar → gabung kelas → sesi mode teks (fallback dipaksa) → laporan |
@@ -98,7 +99,8 @@ gitGraph
   - Deskripsinya berisi apa, mengapa, cara uji, dan screenshot/video untuk perubahan UI (desktop + mobile).
 - **CI** (GitHub Actions) berjalan di setiap PR ke `development` dan `main`:
   - Lint dan typecheck.
-  - Unit + integration test (Supabase lokal via CLI).
+  - Unit test (Vitest).
+  - Database pgTAP & RLS test: Supabase lokal di-start di CI (`supabase start` + `supabase test db`).
   - Build.
   - E2E Playwright, khusus PR ke `main`.
 - **Deploy:**
