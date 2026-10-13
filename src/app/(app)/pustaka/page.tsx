@@ -50,7 +50,7 @@ async function Library() {
             </p>
             <h2 className="mt-1 font-display text-2xl leading-tight">{r.title}</h2>
             <p className="mt-2 text-sm text-ink-2">
-              <span className="text-ink">{r.client_name}</span>, {r.client_occupation}. Peran pelajar: {r.learner_role.toLowerCase()}.
+              <span className="text-ink">{r.client_name}</span>, {r.client_occupation}. Peran pelajar: {r.learner_role}.
             </p>
             <p className="mt-2 line-clamp-3 text-sm text-ink-2">{r.objective}</p>
             <p className="mt-3 font-mono text-label uppercase text-ink-2">

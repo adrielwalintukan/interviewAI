@@ -35,7 +35,7 @@ async function Editor({ params }: { params: PageProps<"/skenario/[id]">["params"
       <Link href="/skenario" className="-my-3 inline-flex min-h-11 items-center font-mono text-label uppercase text-ink-2 hover:text-ink">
         ← Skenario
       </Link>
-      <h1 className="mt-3 mb-8 font-display text-display font-medium tracking-tight">{s.title}</h1>
+      <h1 className="mt-3 mb-8 font-display text-4xl font-medium tracking-tight text-balance sm:text-display">{s.title}</h1>
       <ScenarioEditor
         id={s.id}
         initialDraft={draftSchema.catch({}).parse(s.draft)}

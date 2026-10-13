@@ -32,6 +32,8 @@ const SECTIONS = [
 
 const inputCls =
   "w-full rounded-sm border border-rule bg-paper px-3 py-2.5 text-base text-ink outline-none transition-colors placeholder:text-ink-2/60 focus:border-ink";
+// Textareas grow with their content (no clipped facts on mobile).
+const areaCls = `${inputCls} field-sizing-content min-h-20 max-h-96`;
 
 function Label({ htmlFor, children }: { htmlFor: string; children: ReactNode }) {
   return (
@@ -54,7 +56,7 @@ function TextArea({ id, label, ...rest }: ComponentProps<"textarea"> & { id: str
   return (
     <div>
       <Label htmlFor={id}>{label}</Label>
-      <textarea id={id} rows={3} className={inputCls} {...rest} />
+      <textarea id={id} className={areaCls} {...rest} />
     </div>
   );
 }
@@ -205,7 +207,7 @@ export function ScenarioEditor({
       const res = await publishScenario(id);
       setPublishMsg(
         res.ok
-          ? { ok: true, text: `Terbit sebagai versi ${res.version}. Tugas yang sudah dibuat tetap memakai versi lamanya.` }
+          ? { ok: true, text: res.version === 1 ? "Terbit sebagai versi 1. Sekarang bisa diberikan ke kelas." : `Terbit sebagai versi ${res.version}. Tugas yang sudah dibuat tetap memakai versi lamanya.` }
           : { ok: false, text: "Belum bisa terbit:", problems: res.problems },
       );
     });

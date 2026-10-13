@@ -32,7 +32,7 @@ function AssignmentList({ rows, classId, isOwner }: { rows: AssignmentRow[]; cla
   if (rows.length === 0) {
     return (
       <p className="border-l-2 border-rule pl-4 text-ink-2">
-        {isOwner ? "Belum ada tugas. Beri skenario pertama di bawah." : "Belum ada tugas wawancara. Pengajarmu akan memberikannya di sini."}
+        {isOwner ? "Belum ada tugas. Berikan skenario lewat form Beri tugas." : "Belum ada tugas wawancara. Pengajarmu akan memberikannya di sini."}
       </p>
     );
   }
@@ -47,8 +47,8 @@ function AssignmentList({ rows, classId, isOwner }: { rows: AssignmentRow[]; cla
               {isOwner && <span className="ml-2 font-mono text-label uppercase text-ink-2">v{a.v?.version}</span>}
             </p>
             <p className="mt-1 text-sm text-ink-2">
-              Wawancarai <span className="text-ink">{a.v?.client_name}</span>, {a.v?.client_occupation}. Kamu berperan sebagai{" "}
-              {a.v?.learner_role?.toLowerCase()}.
+              Wawancarai <span className="text-ink">{a.v?.client_name}</span>, {a.v?.client_occupation}.{" "}
+              {isOwner ? "Peran pelajar" : "Peranmu"}: {a.v?.learner_role}.
             </p>
             <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-label uppercase text-ink-2">
               <DueLabel iso={a.due_at} />
@@ -131,14 +131,15 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
   const [{ data: ownScenarios }, { data: library }] = await Promise.all([
     supabase
       .from("scenarios")
-      .select("title, current:scenario_versions!scenarios_current_version_fk(id, version)")
+      .select("current:scenario_versions!scenarios_current_version_fk(id, version, title)")
       .not("current_version_id", "is", null)
       .eq("author_id", user.id)
       .order("updated_at", { ascending: false })
-      .returns<{ title: string; current: { id: string; version: number } | null }[]>(),
+      .returns<{ current: { id: string; version: number; title: string } | null }[]>(),
     supabase.from("library_versions").select("id, title, version, client_name").order("published_at", { ascending: false }),
   ]);
-  const own: VersionOption[] = (ownScenarios ?? []).flatMap((s) => (s.current ? [{ id: s.current.id, label: `${s.title} (v${s.current.version})` }] : []));
+  // Label with the published version's title: the draft title may already have moved on.
+  const own: VersionOption[] = (ownScenarios ?? []).flatMap((s) => (s.current ? [{ id: s.current.id, label: `${s.current.title} (v${s.current.version})` }] : []));
   const ownIds = new Set(own.map((o) => o.id));
   const libraryOptions: VersionOption[] = (library ?? [])
     .filter((v) => !ownIds.has(v.id))
