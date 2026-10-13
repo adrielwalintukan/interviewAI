@@ -4,7 +4,7 @@
 
 Interview AI adalah platform latihan **wawancara elisitasi kebutuhan** untuk sekolah dan kampus. Pelajar mewawancarai karakter AI 3D yang memerankan klien, pemilik bisnis, atau mitra. Karakter ini berbicara dan bereaksi secara realtime. Di setiap skenario tersimpan **fakta tersembunyi**: makin dalam dan tepat pertanyaan pelajar, makin banyak fakta yang terbuka. Setelah sesi selesai, AI menilai transkrip memakai rubrik, lalu Pengajar mereview hasilnya.
 
-Status: **M0 — Fondasi** (lihat [roadmap](docs/roadmap.md)). Prototipe lama ada di `../AI Interview` (lihat [audit-legacy.md](docs/audit-legacy.md)).
+Status: **M1 — Akun & Kelas** (lihat [roadmap](docs/roadmap.md)). Prototipe lama ada di `../AI Interview` (lihat [audit-legacy.md](docs/audit-legacy.md)).
 
 ## Indeks dokumen
 
@@ -50,6 +50,18 @@ cp .env.example .env.local
 npm run dev
 ```
 
+## Setup Supabase (sekali)
+
+1. Jalankan file di `supabase/migrations/` **berurutan** di SQL Editor Supabase. Tunggu job CI `Database pgTAP & RLS Tests` hijau dulu.
+2. **Authentication → Sign In / Providers → Email**: matikan **Confirm email** (keputusan M1). Email bawaan Supabase hanya terkirim ke anggota tim project.
+3. **Authentication → URL Configuration**: isi Site URL (mis. `http://localhost:3000` / domain Vercel) dan Redirect URL `…/auth/callback`.
+4. **Admin pertama**: daftar lewat `/daftar`, lalu jalankan di SQL Editor (ganti emailnya):
+
+```sql
+update public.profiles set role = 'admin', status = 'active'
+where id = (select id from auth.users where email = 'email-anda@contoh.com');
+```
+
 ## Environment variables
 
 Hanya nama variabel. Nilainya disimpan di `.env.local`, yang **tidak pernah** di-commit.
@@ -66,6 +78,7 @@ Hanya nama variabel. Nilainya disimpan di `.env.local`, yang **tidak pernah** di
 | `GRADER_MODEL` | server | Model penilai rubrik & generator skenario |
 | `LIVE_MODEL` | server | Model Gemini Live (native audio) |
 | `GEMINI_FALLBACK_MODEL` | server | Model teks Gemini yang dipakai bila 9router gagal |
+| `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED` | client | `true` untuk menampilkan tombol login Google (setelah OAuth Client diisi di Supabase) |
 
 ## Keterlacakan keputusan
 

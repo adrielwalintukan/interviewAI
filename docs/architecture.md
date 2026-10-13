@@ -197,6 +197,22 @@ erDiagram
 
 Nilai terbaik per tugas tidak disimpan sebagai kolom. Nilai ini dihitung lewat view `assignment_best_scores` (MAX dari `coalesce(final_score, ai_score)`).
 
+## 6a. Auth & sesi (M1)
+
+- **Sesi:** `@supabase/ssr` dengan cookie. `src/proxy.ts` (pengganti `middleware` di Next.js 16) memanggil `getClaims()` sekali per navigasi untuk me-refresh token, lalu melakukan gating kasar:
+  - Rute yang dilindungi → redirect ke `/masuk?next=…`.
+  - User yang sudah login dan membuka `/masuk` atau `/daftar` → redirect ke `/dashboard`.
+- **DAL:** `src/features/auth/dal.ts`.
+  - `getCurrentUser()`: identitas dari `getClaims()` (JWT terverifikasi) + baris `profiles` milik sendiri, di-dedupe per request.
+  - `requireUser({ roles, allowPending, allowPasswordChange })` dipanggil ulang di setiap halaman dan server action. Proxy bukan satu-satunya pengaman.
+- **Cache Components:** `cacheComponents: true` membuat pembacaan cookie di luar `<Suspense>` gagal saat build. Karena itu setiap bagian yang membaca sesi dibungkus `<Suspense>`, dan halaman dirender sebagai Partial Prerender.
+- **Akun tanpa email (US-P-02):** username dipetakan ke email sintetis `username@pelajar.interview-ai.invalid` (TLD `.invalid`, RFC 2606, tidak pernah bisa menerima email). Field login menerima "email atau username".
+- **Status akun:**
+  - `pending` (pengajar baru) hanya bisa melihat dashboard menunggu.
+  - `disabled` diblokir dua lapis: `profiles.status` + `ban_duration` di Supabase Auth. Sesi lama dibersihkan lewat `/keluar`.
+  - `must_change_password` memaksa ke `/ganti-password`.
+- **Kode kelas:** 6 karakter dari 31 huruf/angka tanpa `I O 0 1`. Gabung lewat RPC `join_class()`, yang mengembalikan `null` sama persis untuk kode salah maupun kelas yang diarsipkan.
+
 ## 7. RLS (ringkas)
 
 | Tabel | Pelajar | Pengajar | Admin |
