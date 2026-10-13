@@ -5,12 +5,13 @@ import { requireUser } from "@/features/auth/dal";
 import { deleteAssignment, regenerateJoinCode } from "@/features/classroom/actions";
 import { AssignmentForm, DueLabel, DueState, type VersionOption } from "@/features/classroom/assignments";
 import { BulkStudentsForm, CopyCode } from "@/features/classroom/components";
+import { ResetPasswordButton } from "@/features/auth/reset-password-button";
 import { CharacterPortrait } from "@/features/scenario/character-portrait";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Kelas — Interview AI" };
 
-type Member = { joined_at: string; profiles: { display_name: string; username: string | null } | null };
+type Member = { user_id: string; joined_at: string; profiles: { display_name: string; username: string | null; role: string } | null };
 
 type AssignmentRow = {
   id: string;
@@ -147,7 +148,7 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
 
   const { data: members } = await supabase
     .from("class_members")
-    .select("joined_at, profiles(display_name, username)")
+    .select("user_id, joined_at, profiles(display_name, username, role)")
     .eq("class_id", id)
     .order("joined_at", { ascending: true })
     .returns<Member[]>();
@@ -190,10 +191,15 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
           {members && members.length > 0 ? (
             <ol className="mt-3 divide-y divide-rule border-y border-rule">
               {members.map((m, i) => (
-                <li key={`${m.profiles?.username ?? i}-${m.joined_at}`} className="grid grid-cols-[2rem_1fr_auto] gap-3 py-2.5 text-sm">
+                <li key={m.user_id} className="grid grid-cols-[2rem_1fr] gap-x-3 gap-y-1 py-2.5 text-sm sm:grid-cols-[2rem_1fr_auto]">
                   <span className="font-mono text-ink-2">{String(i + 1).padStart(2, "0")}</span>
-                  <span>{m.profiles?.display_name ?? "—"}</span>
-                  <span className="font-mono text-ink-2">{m.profiles?.username ?? "email"}</span>
+                  <span>
+                    {m.profiles?.display_name ?? "—"}
+                    <span className="block font-mono text-ink-2">{m.profiles?.username ?? "login dengan email"}</span>
+                  </span>
+                  <span className="col-start-2 sm:col-start-3 sm:justify-self-end">
+                    {m.profiles?.role === "pelajar" && <ResetPasswordButton userId={m.user_id} name={m.profiles.display_name} />}
+                  </span>
                 </li>
               ))}
             </ol>

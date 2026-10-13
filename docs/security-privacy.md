@@ -34,6 +34,12 @@ Catatan pihak ketiga: audio dan teks diproses oleh Google (Gemini) dan provider 
 - **Persetujuan Pengajar.** Role `pengajar` hasil pendaftaran mandiri statusnya `pending` sampai disetujui Admin.
 - **Batas akun massal.** Akun massal dibatasi untuk kelas milik Pengajar itu. Password awal dibuat acak (12 karakter), hanya ditampilkan atau diunduh sekali, dan pelajar wajib menggantinya saat login pertama.
 
+## 4a. Password & email
+
+- **Password tidak pernah disimpan atau ditampilkan oleh aplikasi.** Supabase Auth hanya menyimpan hash bcrypt (`auth.users.encrypted_password`), yang tidak bisa dibalik, termasuk oleh pemilik project. Kolom password di `profiles` **dilarang** (keputusan 2026-10-14).
+- **Lupa password:** admin (semua akun kecuali dirinya) atau pengajar (hanya pelajar di kelasnya, dicek `teaches_user()`) me-**reset**. Password awal baru ditampilkan sekali, lalu pelajar wajib menggantinya saat masuk. Password lama tidak pernah bisa dilihat.
+- **Email** tetap hanya di `auth.users`. Halaman Admin membacanya di server lewat Admin API (khusus admin). Pengajar dan pelajar lain tidak bisa melihat email siapa pun. Akun username memakai email sintetis `.invalid`, sehingga yang ditampilkan adalah username-nya.
+
 ## 5. Secret & kunci
 
 - **Hanya di env server:** `GEMINI_API_KEY`, `NINEROUTER_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`. Modul yang memakainya diberi `import "server-only"`.

@@ -1,6 +1,9 @@
 import { Suspense } from "react";
 import { requireUser } from "@/features/auth/dal";
 import { updateUserAccess } from "@/features/admin/actions";
+import { USERNAME_EMAIL_DOMAIN } from "@/features/auth/identifier";
+import { ResetPasswordButton } from "@/features/auth/reset-password-button";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Admin — Interview AI" };
@@ -40,6 +43,16 @@ async function UserTable() {
     .limit(500)
     .returns<ProfileRow[]>();
   const users = data ?? [];
+
+  // Emails live in Supabase Auth (auth.users), not profiles; read them server-side for admins only.
+  // shortcut: one page of 1000 auth users; paginate once an institution has more.
+  const { data: authUsers } = await createAdminClient().auth.admin.listUsers({ perPage: 1000 });
+  const emailById = new Map((authUsers?.users ?? []).map((u) => [u.id, u.email ?? ""]));
+  const emailOf = (id: string) => {
+    const email = emailById.get(id) ?? "";
+    return email.endsWith(`@${USERNAME_EMAIL_DOMAIN}`) ? null : email; // username accounts have a synthetic address
+  };
+
   const pending = users.filter((u) => u.status === "pending");
 
   return (
@@ -63,7 +76,7 @@ async function UserTable() {
         <table className="w-full min-w-[40rem] text-left text-sm">
           <thead className="font-mono text-label uppercase text-ink-2">
             <tr className="border-b border-rule">
-              <th className="py-2 pr-4 font-normal">Nama</th>
+              <th className="py-2 pr-4 font-normal">Nama & login</th>
               <th className="py-2 pr-4 font-normal">Role</th>
               <th className="py-2 pr-4 font-normal">Status</th>
               <th className="py-2 font-normal">Aksi</th>
@@ -74,7 +87,7 @@ async function UserTable() {
               <tr key={u.id} className="border-b border-rule align-middle">
                 <td className="py-3 pr-4">
                   <span className="block">{u.display_name}</span>
-                  {u.username && <span className="font-mono text-ink-2">{u.username}</span>}
+                  <span className="block break-all font-mono text-ink-2">{u.username ?? emailOf(u.id) ?? "—"}</span>
                 </td>
                 <td className="py-3 pr-4 capitalize">{u.role}</td>
                 <td className={`py-3 pr-4 ${STATUS_TONE[u.status]}`}>{STATUS_LABEL[u.status]}</td>
@@ -90,6 +103,7 @@ async function UserTable() {
                       ) : (
                         <AccessButton user={u} role={u.role} status="disabled" label="Nonaktifkan" />
                       )}
+                      <ResetPasswordButton userId={u.id} name={u.display_name} />
                     </div>
                   )}
                 </td>
