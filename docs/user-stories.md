@@ -91,6 +91,10 @@ Sebagai Pelajar tanpa email, saya ingin login dengan username dan password awal 
 ### US-G-10 Publikasi ke Pustaka (S)
 - **Then** saya bisa menandai skenario sebagai publik supaya muncul di Pustaka Skenario.
 
+### US-G-11 Reset password pelajar (M)
+- **Given** pelajar di kelas saya lupa password, **when** saya menekan "Reset password" di roster dan mengonfirmasi, **then** password awal baru tampil sekali, dan pelajar wajib menggantinya saat masuk.
+- **Given** akun itu bukan pelajar di kelas saya, **then** reset ditolak.
+
 ## Admin
 
 ### US-A-01 Mengelola role (M)
@@ -104,3 +108,7 @@ Sebagai Pelajar tanpa email, saya ingin login dengan username dan password awal 
 
 ### US-A-04 Memantau kuota (S)
 - **Then** Admin melihat pemakaian harian (jumlah sesi, persentase fallback, error provider).
+
+### US-A-05 Email & reset password (M)
+- **Then** halaman Admin menampilkan email login tiap akun (atau username untuk akun massal), yang diambil dari Supabase Auth di server.
+- **When** Admin me-reset password akun lain, **then** password awal baru tampil sekali dan wajib diganti saat masuk. Admin tidak bisa me-reset akunnya sendiri dari sini.
