@@ -97,9 +97,14 @@ sequenceDiagram
   B->>S: POST /api/sessions/:id/messages (per giliran)
 ```
 
-- **Prompt dikunci di dalam token.** Konfigurasi sesi (system instruction yang berisi persona dan fakta) dikunci lewat *constraints* token di server, jadi browser tidak pernah melihat prompt. ⚠️ **Perlu verifikasi** saat M3: pastikan constraints ephemeral token memang bisa mengunci `systemInstruction`. Kalau tidak bisa, pakai relay WebSocket di VPS AWS milik project (lihat ADR-002).
-- **Endpoint.** Koneksi memakai endpoint `v1alpha` `BidiGenerateContentConstrained` dengan `access_token`. Dokumentasi resmi masih menyebut versi yang berbeda-beda, jadi verifikasi lagi saat implementasi.
-- **Model.** Nama model Live diambil dari env `LIVE_MODEL`, tidak di-hardcode. Nama model preview sering berganti (mis. `gemini-3.1-flash-live-preview`, `gemini-2.5-flash-native-audio-*`).
+- **Prompt dikunci di dalam token (terverifikasi spike 2026-10-14).** Server membuat token lewat `POST v1beta/auth_tokens` dengan `bidiGenerateContentSetup` lengkap (model, `systemInstruction`, voice, `responseModalities`, transkripsi) dan **tanpa `fieldMask`**. Menurut referensi API, setup efektif lalu "taken entirely from `bidiGenerateContentSetup`… the setup message from the Live API connection is ignored".
+  - Hasil uji: client yang mengirim instruksi berbeda tetap mendapat jawaban dari instruksi server. Ini berlaku di `gemini-3.8-live` maupun `gemini-2.5-flash-native-audio-latest`.
+  - `fieldMask` parsial ditolak API (400) kalau setup berisi field di luar mask, jadi jangan dipakai.
+  - Token (`auth_tokens/<id>`) tidak mengandung isi prompt, dan `uses: 1` benar ditegakkan (pemakaian kedua → `1011 Token has been used too many times`).
+- **Endpoint.** `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token=<token>` (**v1beta**, terverifikasi).
+- **Model.** Diambil dari env `LIVE_MODEL`, tidak di-hardcode. Rekomendasi saat spike: `gemini-3.8-live` (setup + jawaban pendek ±3 dtk). Model Live lain di akun: `gemini-2.5-flash-native-audio-latest`, `gemini-3.1-flash-live-preview`.
+- **Jangan pakai teks `modelTurn` untuk transkrip.** Model native-audio mengirim teks penalaran ("thinking") sebagai part teks, dan penalaran itu bisa menyebut fakta tersembunyi. Transkrip karakter **hanya** diambil dari `outputTranscription`, dan ucapan pelajar dari `inputTranscription`.
+- **Kuota free tier (spike):** sekitar **6 sesi Live bersamaan** per project (8 koneksi serentak → 6 berhasil, 2 ditolak `1011 exceeded your current quota`). `LIVE_MAX_CONCURRENT` default **5**; sesi berikutnya langsung masuk Fallback. Kuota per menit/hari belum diukur.
 - **Durasi.** Durasi sesi maksimal mengikuti `expireTime` token, yang diset ≥ durasi tugas + 2 menit.
 - **Barge-in.** Ditangani oleh VAD bawaan Live API. Saat event interrupt datang, client menghentikan antrean audio yang sedang diputar.
 
