@@ -1,0 +1,29 @@
+# deps & build
+node_modules/
+.next/
+out/
+build/
+dist/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+next-env.d.ts
+
+# env (never commit secrets)
+.env
+.env.*
+!.env.example
+
+# supabase local
+supabase/.temp/
+supabase/.branches/
+
+# misc
+.DS_Store
+Thumbs.db
+*.log
+.vercel/
+.vscode/*
+!.vscode/extensions.json
+.history/
