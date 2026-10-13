@@ -66,7 +66,12 @@ describe("llm gateway", () => {
     await createGateway([provider("9router", primary)])({ ...input, task: "grader", json: true });
 
     const [body, opts] = primary.mock.calls[0]!;
-    expect(body).toMatchObject({ model: "9router-grader", temperature: 0.2, response_format: { type: "json_object" } });
+    expect(body).toMatchObject({
+      model: "9router-grader",
+      stream: false,
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+    });
     expect(opts).toEqual({ timeout: 60_000, maxRetries: 0 });
   });
 });

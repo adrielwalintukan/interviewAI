@@ -52,6 +52,8 @@ export function createGateway(providers: Provider[]) {
         const res = await p.client.chat.completions.create(
           {
             model,
+            // 9router streams SSE unless told otherwise, which the non-streaming parser can't read.
+            stream: false,
             messages: input.messages,
             temperature: input.temperature ?? (input.task === "grader" ? 0.2 : 0.7),
             ...(input.json ? { response_format: { type: "json_object" as const } } : {}),
