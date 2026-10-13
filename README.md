@@ -20,6 +20,7 @@ Status: **M1 — Akun & Kelas** (lihat [roadmap](docs/roadmap.md)). Prototipe la
 | [security-privacy.md](docs/security-privacy.md) | Data anak, consent, retensi, RLS, secret |
 | [glossary.md](docs/glossary.md) | Bahasa domain |
 | [roadmap.md](docs/roadmap.md) | Milestone M0–M5 |
+| [vrm-spec.md](docs/vrm-spec.md) | Spesifikasi 6 karakter VRoid (gaya, ekspresi lip-sync, ukuran, lisensi) |
 | [audit-legacy.md](docs/audit-legacy.md) | Audit project lama |
 | [decisions/](docs/decisions/) | ADR 001–005 |
 

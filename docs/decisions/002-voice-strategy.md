@@ -27,6 +27,7 @@ Pemilik project ingin percakapan voice-to-voice realtime, **asalkan gratis**. Ko
 - (+) Biaya Rp0, dan pengalaman terbaik saat kuota tersedia.
 - (−) Dua jalur suara harus dites. Kualitas fallback lebih rendah (terutama di Safari/Firefox).
 - (−) Transkrip mode Live berasal dari client, jadi bisa dipalsukan. Mitigasinya ada di [architecture.md §3.3](../architecture.md#33-kepercayaan-transkrip).
+- **Hasil spike 2026-10-14:** ephemeral token **berhasil mengunci** `systemInstruction` (setup lengkap di token, tanpa `fieldMask`; setup dari client diabaikan). Token tidak membawa isi prompt dan benar sekali pakai. **Relay di AWS tidak dibutuhkan** untuk menjaga kerahasiaan prompt. Relay tetap jadi opsi untuk kepercayaan transkrip (ujian). Detail: `docs/architecture.md` §3.1.
 - **Rencana relay (kalau dibutuhkan):**
   - Host: VPS AWS milik pemilik project (credit $100 untuk 6 bulan, jadi target biaya ≤ $15/bulan). Region sebaiknya terdekat dengan pengguna (Jakarta/Singapura).
   - Bentuk: Node + `ws` dalam Docker, dengan TLS di domain sendiri.

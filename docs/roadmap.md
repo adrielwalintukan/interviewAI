@@ -13,6 +13,6 @@ Setiap milestone berakhir dengan sesuatu yang bisa di-demo dan di-deploy. Story 
 
 Spike yang sebaiknya dikerjakan **sebelum** M3, karena hasilnya menentukan arsitektur:
 
-1. Verifikasi apakah constraints ephemeral token Gemini Live bisa mengunci `systemInstruction`, dan cek endpoint/model saat ini. Kalau tidak bisa, bangun relay WebSocket di VPS AWS (ADR-002). Cek juga jenis instance dan region VPS tersebut (EC2/Lightsail).
-2. Ukur kuota free tier Live yang nyata di project AI Studio Anda: berapa sesi bersamaan dan berapa menit per hari.
+1. ✅ **Selesai 2026-10-14.** Ephemeral token mengunci `systemInstruction` (setup lengkap, tanpa `fieldMask`), endpoint `v1beta …Constrained`, model `gemini-3.8-live`. Relay AWS tidak dibutuhkan (ADR-002).
+2. ◐ **Sebagian.** Sesi bersamaan sekitar 6 per project di free tier. Menit/hari belum diukur; pantau lewat `llm_calls` saat pilot.
 3. Uji kualitas lip-sync berbasis analyser pada satu VRM, di desktop dan Android kelas menengah.
