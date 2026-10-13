@@ -336,6 +336,8 @@ Body PR mengikuti template `.github/pull_request_template.md`. **Jangan** menuli
 9. **Risiko & rollback**: apa yang bisa rusak dan cara membatalkannya.
 10. **Checklist DoD** (§16).
 
+Jangan menambahkan footer AI ("Generated with …", co-author AI) di body PR.
+
 Saat HEAD berubah secara berarti (fix tambahan, scope bertambah), **perbarui body PR** supaya tetap akurat.
 
 ### Review PR

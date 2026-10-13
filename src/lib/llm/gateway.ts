@@ -1,7 +1,7 @@
 import "server-only";
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
-import { serverEnv } from "@/lib/env";
+import { llmEnv } from "@/lib/env";
 
 export type LlmTask = "chat" | "grader";
 
@@ -87,7 +87,7 @@ let defaultComplete: ReturnType<typeof createGateway> | undefined;
 /** Text LLM per ADR-003: 9router first, Gemini (OpenAI-compatible endpoint) as fallback. */
 export function complete(input: CompleteInput): Promise<CompleteResult> {
   if (!defaultComplete) {
-    const env = serverEnv();
+    const env = llmEnv();
     defaultComplete = createGateway([
       {
         name: "9router",
