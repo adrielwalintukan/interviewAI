@@ -97,6 +97,11 @@ Bobot 0.6/0.4 adalah default. Pengajar bisa menyesuaikannya per tugas nanti (Cou
 
 ## 4. Prompt Generator skenario
 
+Implementasi: `src/lib/llm/prompts/generator.ts` (`generator@1`), dipanggil oleh `generateDraft()` dengan tugas `grader`.
+- Ringkasan pengajar dikirim di giliran `user` sebagai data yang dipagari tanda kutip, bukan dicampur ke system prompt.
+- Output diambil lewat `extractJson()` (toleran terhadap code fence 9router), fakta diberi nomor ulang F1..Fn, lalu divalidasi `contentSchema` dan dicek bahwa `characterId` ada di roster.
+- Kalau output tidak valid: 1 kali retry dengan umpan balik. Kalau tetap gagal, pengajar mendapat pesan yang jelas.
+
 **Input:** ringkasan Pengajar, bahasa, tingkat, dan jumlah fakta (default 10).
 
 **Output:** JSON `Scenario` tanpa `id`, divalidasi dengan Zod. Instruksi kuncinya:

@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { publicSupabaseConfig } from "@/lib/supabase/config";
 
-const PROTECTED = ["/dashboard", "/kelas", "/admin", "/ganti-password"];
+const PROTECTED = ["/dashboard", "/kelas", "/admin", "/ganti-password", "/skenario", "/pustaka"];
 const GUEST_ONLY = ["/masuk", "/daftar"];
 
 const matches = (path: string, prefixes: string[]) =>

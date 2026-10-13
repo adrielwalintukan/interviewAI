@@ -167,8 +167,7 @@ erDiagram
   profiles ||--o{ classes : "owner"
   profiles ||--o{ scenarios : "author"
   scenarios ||--o{ scenario_versions : ""
-  scenario_versions ||--o{ scenario_facts : ""
-  scenario_versions ||--|| rubrics : ""
+  scenario_versions ||--|| scenario_version_secrets : ""
   characters ||--o{ scenarios : ""
   classes ||--o{ assignments : ""
   scenario_versions ||--o{ assignments : "snapshot"
@@ -183,11 +182,11 @@ erDiagram
 | `profiles` | `id` (= auth.users.id), `role` (`admin`/`pengajar`/`pelajar`), `status` (`active`/`pending`/`disabled`), `display_name`, `username`, `must_change_password`, `mic_consent_at` |
 | `classes` | `id`, `owner_id`, `name`, `join_code` (unique), `archived_at` |
 | `class_members` | `class_id`, `user_id`, `joined_at`. PK gabungan |
-| `characters` | `id`, `name`, `vrm_path`, `thumbnail_path`, `gender`, `live_voice`, `tts_voice_hint`, `active` |
-| `scenarios` | `id`, `author_id`, `title`, `is_public`, `current_version_id` |
-| `scenario_versions` | `id`, `scenario_id`, `version`, `language` (`id`/`en`), `level`, `learner_role`, `objective`, `persona` (jsonb), `character_id`, `published_at`. Immutable setelah terbit |
-| `scenario_facts` | `id`, `version_id`, `category`, `content`, `weight`, `difficulty` (1–3), `trigger_hint` |
-| `rubrics` | `version_id`, `criteria` (jsonb: nama, bobot, deskriptor) |
+| `characters` | `id` (slug), `name`, `occupation`, `age_range`, `gender`, `live_voice` (suara melekat di karakter), `portrait_hue`, `vrm_path` (M3), `active`, `sort`. Seed 6 karakter |
+| `scenarios` | `id`, `author_id`, `title`, `draft` (jsonb, autosave editor, hanya penulis), `is_public` (hanya bila sudah terbit), `current_version_id` |
+| `scenario_versions` | **Brief** yang boleh dilihat pelajar: `id`, `scenario_id`, `version`, `title`, `language`, `level`, `learner_role`, `objective`, `client_name`, `client_occupation`, `character_id`, `published_at`. Immutable; dibuat hanya lewat RPC `publish_scenario()` |
+| `scenario_version_secrets` | **Rahasia**: `version_id`, `persona`, `facts` (F1..Fn), `rubric` (jsonb, divalidasi Zod `contentSchema`). Hanya penulis & admin; server membacanya untuk prompt/grader |
+| `library_versions` (view) | Versi terkini dari skenario publik (`security_invoker`, RLS tetap berlaku) |
 | `assignments` | `id`, `class_id`, `scenario_version_id`, `due_at`, `duration_min` (15), `max_attempts` (3) |
 | `sessions` | `id`, `user_id`, `assignment_id` (null = pustaka), `scenario_version_id`, `mode` (`live`/`fallback`), `status` (`active`/`grading`/`graded`/`grading_failed`), `prompt_version`, `started_at`, `ended_at` |
 | `messages` | `id`, `session_id`, `seq`, `speaker` (`learner`/`character`), `text`, `created_at` |
@@ -223,8 +222,10 @@ Nilai terbaik per tugas tidak disimpan sebagai kolom. Nilai ini dihitung lewat v
 |---|---|---|---|
 | `sessions`, `messages` | baris miliknya | sesi pada kelas miliknya + preview miliknya | semua |
 | `evaluations` | baca miliknya, tanpa kolom fakta mentah | baca + update override di kelasnya | semua |
-| `scenario_facts`, `rubrics` | **tidak ada akses** | skenario buatannya | semua |
-| `scenario_versions` | hanya kolom brief lewat view `scenario_briefs` | skenario buatannya + publik | semua |
+| `scenarios` (draf) | **tidak ada akses** | skenario buatannya | semua |
+| `scenario_version_secrets` | **tidak ada akses** | skenario buatannya | semua |
+| `scenario_versions` (brief) | versi yang ditugaskan ke kelasnya + versi publik terkini | buatannya + yang ditugaskan + publik terkini | semua |
+| `assignments` | kelas yang diikuti | kelas miliknya (buat/ubah/hapus) | semua |
 | `classes` | kelas yang diikuti | kelas miliknya | semua |
 
 Data yang perlu fakta (persona prompt, grader) dibaca oleh server dengan service role, setelah otorisasi dicek di kode. Detail lengkap: [security-privacy.md](security-privacy.md).
