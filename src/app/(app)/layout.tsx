@@ -11,8 +11,8 @@ async function UserMenu() {
   return (
     <div className="flex items-center gap-4">
       {user.role === "admin" && (
-        <Link href="/admin" className="font-mono text-label uppercase text-ink-2 hover:text-ink">
-          Admin
+        <Link href="/admin" className="inline-flex min-h-11 items-center text-sm text-ink-2 underline-offset-4 hover:text-ink hover:underline">
+          Kelola akun
         </Link>
       )}
       <span className="hidden text-right sm:block">
@@ -32,7 +32,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="grain min-h-dvh">
       <header className="mx-auto flex max-w-6xl items-center justify-between gap-4 border-b border-rule px-4 py-3 sm:px-8">
-        <Link href="/dashboard" className="font-display text-xl font-semibold tracking-tight">
+        <Link href="/dashboard" className="inline-flex min-h-11 items-center font-display text-xl font-semibold tracking-tight">
           Interview AI
         </Link>
         <Suspense fallback={<span className="h-8 w-28 animate-pulse rounded-sm bg-paper-2" />}>

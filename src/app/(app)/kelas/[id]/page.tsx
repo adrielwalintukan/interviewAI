@@ -28,7 +28,7 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
 
   const header = (
     <>
-      <Link href="/dashboard" className="font-mono text-label uppercase text-ink-2 hover:text-ink">
+      <Link href="/dashboard" className="-my-3 inline-flex min-h-11 items-center font-mono text-label uppercase text-ink-2 hover:text-ink">
         ← Dashboard
       </Link>
       <h1 className="mt-4 font-display text-display font-medium tracking-tight">{cls.name}</h1>

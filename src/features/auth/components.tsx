@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { buttonClass } from "@/components/ui/button-class";
 import { Field, Notice, SubmitButton } from "@/components/ui/form";
 import { changePassword, signIn, signInWithGoogle, signUp } from "./actions";
@@ -30,7 +30,7 @@ export function SignInForm({ next, error }: { next?: string; error?: string }) {
       <GoogleButton next={next} />
       <form action={action} className="mt-6 flex flex-col gap-5">
         <input type="hidden" name="next" value={next ?? ""} />
-        <Field label="Email atau username" name="identifier" autoComplete="username" required autoFocus />
+        <Field label="Email atau username" name="identifier" autoComplete="username" required autoFocus defaultValue={state?.values?.identifier} />
         <Field label="Password" name="password" type="password" autoComplete="current-password" required />
         {error === "google" && <Notice>Masuk dengan Google gagal. Coba lagi.</Notice>}
         {state?.error && <Notice>{state.error}</Notice>}
@@ -72,8 +72,8 @@ export function SignUpForm() {
             <p className="text-sm text-ink-2">Akun pengajar aktif setelah disetujui Admin institusi.</p>
           )}
         </fieldset>
-        <Field label="Nama lengkap" name="displayName" autoComplete="name" required maxLength={80} error={fe?.displayName} />
-        <Field label="Email" name="email" type="email" autoComplete="email" required error={fe?.email} />
+        <Field label="Nama lengkap" name="displayName" autoComplete="name" required maxLength={80} error={fe?.displayName} defaultValue={state?.values?.displayName} />
+        <Field label="Email" name="email" type="email" autoComplete="email" required error={fe?.email} defaultValue={state?.values?.email} />
         <Field
           label="Password"
           name="password"
@@ -101,6 +101,9 @@ export function SignUpForm() {
 export function ChangePasswordForm() {
   const [state, action] = useActionState(changePassword, undefined);
   const fe = state?.fieldErrors;
+  useEffect(() => {
+    if (state?.ok) window.location.replace("/dashboard");
+  }, [state?.ok]);
   return (
     <form action={action} className="mt-6 flex flex-col gap-5">
       <Field
@@ -115,6 +118,7 @@ export function ChangePasswordForm() {
       />
       <Field label="Ulangi password" name="confirm" type="password" autoComplete="new-password" required error={fe?.confirm} />
       {state?.error && <Notice>{state.error}</Notice>}
+      {state?.ok && <Notice tone="ok">{state.ok} Membuka dashboard…</Notice>}
       <SubmitButton pending="Menyimpan…">Simpan password</SubmitButton>
     </form>
   );

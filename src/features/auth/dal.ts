@@ -15,8 +15,8 @@ export type CurrentUser = {
   mustChangePassword: boolean;
 };
 
-/** Verified identity (getClaims checks the JWT) + own profile row. Deduped per request. */
-export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
+/** Verified identity (getClaims checks the JWT) + own profile row. Uncached: use in actions that change it. */
+export async function loadCurrentUser(): Promise<CurrentUser | null> {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
@@ -37,7 +37,13 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     username: p.username,
     mustChangePassword: p.must_change_password,
   };
-});
+}
+
+/**
+ * Deduped per request. The cache spans a whole action request including the redirect render that
+ * follows it, so an action that changes the caller's own profile must use loadCurrentUser().
+ */
+export const getCurrentUser = cache(loadCurrentUser);
 
 /**
  * Gate for pages and actions. Disabled accounts are bounced; pending teachers may only see the

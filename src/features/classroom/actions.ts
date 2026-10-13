@@ -14,8 +14,9 @@ const className = z.string().trim().min(1, "Nama kelas wajib diisi").max(80, "Ma
 
 export async function createClass(_: FormState, form: FormData): Promise<FormState> {
   const user = await requireUser({ roles: ["pengajar"] });
-  const parsed = className.safeParse(form.get("name"));
-  if (!parsed.success) return { fieldErrors: { name: parsed.error.issues[0]?.message ?? "Tidak valid" } };
+  const values = { name: String(form.get("name") ?? "") };
+  const parsed = className.safeParse(values.name);
+  if (!parsed.success) return { fieldErrors: { name: parsed.error.issues[0]?.message ?? "Tidak valid" }, values };
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -23,19 +24,20 @@ export async function createClass(_: FormState, form: FormData): Promise<FormSta
     .insert({ owner_id: user.id, name: parsed.data })
     .select("id")
     .single();
-  if (error || !data) return { error: "Kelas gagal dibuat. Coba lagi." };
+  if (error || !data) return { error: "Kelas gagal dibuat. Coba lagi.", values };
   redirect(`/kelas/${data.id}`);
 }
 
 export async function joinClass(_: FormState, form: FormData): Promise<FormState> {
   await requireUser({ roles: ["pelajar"] });
   const code = String(form.get("code") ?? "").trim();
-  if (!/^[A-Za-z0-9]{6,8}$/.test(code)) return { fieldErrors: { code: "Kode kelas 6–8 huruf/angka" } };
+  const values = { code };
+  if (!/^[A-Za-z0-9]{6,8}$/.test(code)) return { fieldErrors: { code: "Kode kelas 6–8 huruf/angka" }, values };
 
   const supabase = await createClient();
   const { data: classId, error } = await supabase.rpc("join_class", { p_code: code });
   // Same message for wrong and archived codes (US-P-01).
-  if (error || !classId) return { fieldErrors: { code: "Kode tidak ditemukan atau kelas sudah ditutup." } };
+  if (error || !classId) return { fieldErrors: { code: "Kode tidak ditemukan atau kelas sudah ditutup." }, values };
   redirect(`/kelas/${classId}`);
 }
 
@@ -49,16 +51,18 @@ export async function regenerateJoinCode(form: FormData): Promise<void> {
 
 export type BulkResult = {
   error?: string;
+  text?: string; // pasted list echoed back on error so the form reset doesn't lose it
   created?: { name: string; username: string; password: string }[];
   rejected?: { line: number; raw: string; reason: string }[];
 };
 
 export async function bulkCreateStudents(_: BulkResult | undefined, form: FormData): Promise<BulkResult> {
   const teacher = await requireUser({ roles: ["pengajar"] });
+  const pasted = String(form.get("text") ?? "");
   const classId = z.uuid().safeParse(form.get("classId"));
   if (!classId.success) return { error: "Kelas tidak valid." };
   if (form.get("consent") !== "on") {
-    return { error: "Centang konfirmasi persetujuan orang tua/wali sebelum membuat akun." };
+    return { error: "Centang konfirmasi persetujuan orang tua/wali sebelum membuat akun.", text: pasted };
   }
 
   // Ownership checked as the teacher (RLS), before any service-role write.
@@ -70,12 +74,12 @@ export async function bulkCreateStudents(_: BulkResult | undefined, form: FormDa
     .eq("owner_id", teacher.id)
     .is("archived_at", null)
     .maybeSingle();
-  if (!owned) return { error: "Kelas tidak ditemukan." };
+  if (!owned) return { error: "Kelas tidak ditemukan.", text: pasted };
 
   const file = form.get("file");
-  const text = file instanceof File && file.size > 0 ? await file.text() : String(form.get("text") ?? "");
+  const text = file instanceof File && file.size > 0 ? await file.text() : pasted;
   if (!text.trim()) return { error: "Unggah file CSV atau tempel daftar pelajar." };
-  if (text.length > 100_000) return { error: "File terlalu besar (maks. 100 KB)." };
+  if (text.length > 100_000) return { error: "File terlalu besar (maks. 100 KB).", text: pasted };
 
   const admin = createAdminClient();
   const { rows: candidates } = parseStudentCsv(text);

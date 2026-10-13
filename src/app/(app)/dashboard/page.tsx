@@ -22,7 +22,7 @@ async function ClassList({ user }: { user: CurrentUser }) {
     return (
       <p className="border-l-2 border-rule pl-4 text-ink-2">
         {user.role === "pengajar"
-          ? "Belum ada kelas. Buat satu di atas, lalu bagikan kodenya ke pelajar."
+          ? "Belum ada kelas. Buat kelas baru, lalu bagikan kodenya ke pelajar."
           : "Kamu belum bergabung ke kelas mana pun. Minta kode kelas ke pengajarmu."}
       </p>
     );
@@ -71,7 +71,7 @@ async function Dashboard() {
     <div className="grid gap-12 lg:grid-cols-12">
       <section className="lg:col-span-7">
         <p className="font-mono text-label uppercase text-accent">01 — {isTeacher ? "Kelas Anda" : "Kelasmu"}</p>
-        <h1 className="mt-3 font-display text-display font-medium tracking-tight">Halo, {user.displayName.split(" ")[0]}.</h1>
+        <h1 className="mt-3 font-display text-display font-medium tracking-tight">Halo, {user.displayName}.</h1>
         <div className="mt-8">
           <ClassList user={user} />
         </div>

@@ -10,7 +10,7 @@ export function CreateClassForm() {
   return (
     <form action={action} className="flex flex-col gap-4 sm:flex-row sm:items-start">
       <div className="flex-1">
-        <Field label="Nama kelas baru" name="name" placeholder="mis. RPL XI-1 Analisis Kebutuhan" required maxLength={80} error={state?.fieldErrors?.name} />
+        <Field label="Nama kelas baru" name="name" placeholder="mis. RPL XI-1 Analisis Kebutuhan" required maxLength={80} error={state?.fieldErrors?.name} defaultValue={state?.values?.name} />
       </div>
       <SubmitButton variant="accent" pending="Membuat…" className="sm:mt-6">
         Buat kelas
@@ -36,6 +36,7 @@ export function JoinClassForm() {
           maxLength={8}
           className="min-h-11 w-full rounded-sm border border-rule bg-paper px-3 font-mono text-lg uppercase tracking-[0.2em] text-ink outline-none focus:border-ink aria-invalid:border-accent"
           error={state?.fieldErrors?.code}
+          defaultValue={state?.values?.code}
         />
       </div>
       <SubmitButton variant="accent" pending="Bergabung…" className="sm:mt-6">
@@ -88,6 +89,7 @@ export function BulkStudentsForm({ classId }: { classId: string }) {
             name="text"
             rows={5}
             placeholder={"Budi Santoso,budi.s\nSiti Aminah,siti_01"}
+            defaultValue={state?.text}
             className="rounded-sm border border-rule bg-paper p-3 font-mono text-sm outline-none focus:border-ink"
           />
         </div>
