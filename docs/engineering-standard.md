@@ -14,7 +14,7 @@
 
 | Area | Pilihan |
 |---|---|
-| Package manager | pnpm |
+| Package manager | npm (registry npmjs dikunci di `.npmrc` project) |
 | Bahasa | TypeScript `strict: true`, `noUncheckedIndexedAccess: true` |
 | Lint/format | ESLint (config Next) + Prettier; CI gagal kalau ada warning |
 | Validasi | Zod di semua input route/action, output LLM, dan env (`lib/env.ts`) |
@@ -56,7 +56,7 @@
 | E2E | Alur kritis | Daftar → gabung kelas → sesi mode teks (fallback dipaksa) → laporan |
 
 - **Hitung tes, bukan vanity.** Setiap logika bercabang yang baru wajib punya minimal satu tes.
-- **Prompt eval** dijalankan manual (`pnpm eval`) setiap kali prompt berubah, karena memanggil LLM sungguhan. Hasilnya dicatat di PR.
+- **Prompt eval** dijalankan manual (`npm run eval`) setiap kali prompt berubah, karena memanggil LLM sungguhan. Hasilnya dicatat di PR.
 
 ## 6. Git & PR
 

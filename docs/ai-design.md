@@ -113,6 +113,6 @@ Bobot 0.6/0.4 adalah default. Pengajar bisa menyesuaikannya per tugas nanti (Cou
 ## 5. Pengujian prompt
 
 - **Fixture.** `tests/fixtures/transcripts/` berisi minimal 4 transkrip per skenario contoh: dangkal, sedang, mendalam, dan injection.
-- **Eval.** Perintah `pnpm eval` menjalankan grader pada fixture dan memeriksa rentang nilai yang diharapkan.
+- **Eval.** Perintah `npm run eval` menjalankan grader pada fixture dan memeriksa rentang nilai yang diharapkan.
 - **Uji persona.** Persona diuji dengan skrip percakapan otomatis. Pertanyaan injection harus menghasilkan 0 fakta kesulitan 3 yang bocor.
 - **Versi.** Setiap perubahan prompt menaikkan versi (`persona@2`) dan dicatat di PR beserta hasil eval.
