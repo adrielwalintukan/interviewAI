@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { requireUser } from "@/features/auth/dal";
 import { deleteAssignment, regenerateJoinCode } from "@/features/classroom/actions";
-import { AssignmentForm, DueLabel, DueState, type VersionOption } from "@/features/classroom/assignments";
+import { AssignmentForm, DueLabel, DueState, LocalTime, type VersionOption } from "@/features/classroom/assignments";
 import { BulkStudentsForm, CopyCode } from "@/features/classroom/components";
 import { ResetPasswordButton } from "@/features/auth/reset-password-button";
 import { CharacterPortrait } from "@/features/scenario/character-portrait";
@@ -12,6 +12,32 @@ import { createClient } from "@/lib/supabase/server";
 export const metadata = { title: "Kelas — Interview AI" };
 
 type Member = { user_id: string; joined_at: string; profiles: { display_name: string; username: string | null; role: string } | null };
+
+type HistoryRow = { id: string; status: string; started_at: string; v: { title: string; client_name: string } | null };
+
+const STATUS_LABEL: Record<string, string> = { active: "Berjalan", ended: "Selesai", grading: "Dinilai", graded: "Sudah dinilai", grading_failed: "Selesai" };
+
+function SessionHistory({ rows }: { rows: HistoryRow[] }) {
+  if (rows.length === 0) return <p className="border-l-2 border-rule pl-4 text-ink-2">Belum ada wawancara. Transkripmu akan tersimpan di sini.</p>;
+  return (
+    <ol className="divide-y divide-rule border-y border-rule">
+      {rows.map((s) => (
+        <li key={s.id} className="flex items-center gap-4 py-4">
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-lg leading-tight">{s.v?.title}</p>
+            <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 font-mono text-label uppercase text-ink-2">
+              <LocalTime iso={s.started_at} />
+              <span className={s.status === "active" ? "text-accent" : undefined}>{STATUS_LABEL[s.status] ?? s.status}</span>
+            </p>
+          </div>
+          <Link href={`/sesi/${s.id}/selesai`} className="inline-flex min-h-11 shrink-0 items-center rounded-sm border border-rule px-4 text-sm hover:border-ink">
+            Transkrip<span className="sr-only"> {s.v?.title}</span>
+          </Link>
+        </li>
+      ))}
+    </ol>
+  );
+}
 
 type AssignmentRow = {
   id: string;
@@ -116,6 +142,14 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
   );
 
   if (!isOwner) {
+    // RLS: own sessions only. Sessions of a deleted assignment lose their class link and drop out of this list.
+    const { data: history } = await supabase
+      .from("sessions")
+      .select("id, status, started_at, assignment:assignments!inner(class_id), v:scenario_versions(title, client_name)")
+      .eq("user_id", user.id)
+      .eq("assignment.class_id", id)
+      .order("started_at", { ascending: false })
+      .returns<HistoryRow[]>();
     return (
       <>
         {header}
@@ -123,6 +157,12 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
           <p className="font-mono text-label uppercase text-accent">Tugas wawancara</p>
           <div className="mt-4">
             <AssignmentList rows={assignments} classId={cls.id} isOwner={false} />
+          </div>
+        </section>
+        <section className="mt-12 max-w-3xl">
+          <p className="font-mono text-label uppercase text-accent">Riwayat wawancara</p>
+          <div className="mt-4">
+            <SessionHistory rows={history ?? []} />
           </div>
         </section>
       </>

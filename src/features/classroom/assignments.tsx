@@ -10,10 +10,13 @@ const noSubscribe = () => () => {};
 const useClientValue = <T,>(read: () => T, server: T) => useSyncExternalStore(noSubscribe, read, () => server);
 
 /** Formats in the viewer's own zone (the server only knows UTC). */
-export function DueLabel({ iso }: { iso: string | null }) {
-  const label = useClientValue(() => (iso ? formatDue(iso) : null), null);
-  if (!iso) return <span>Tanpa tenggat</span>;
+export function LocalTime({ iso }: { iso: string }) {
+  const label = useClientValue(() => formatDue(iso), null);
   return <time dateTime={iso}>{label ?? "…"}</time>;
+}
+
+export function DueLabel({ iso }: { iso: string | null }) {
+  return iso ? <LocalTime iso={iso} /> : <span>Tanpa tenggat</span>;
 }
 
 export function DueState({ iso }: { iso: string | null }) {

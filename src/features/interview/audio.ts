@@ -45,7 +45,7 @@ export async function startMic(onChunk: (pcm: ArrayBuffer) => void): Promise<Mic
   return {
     stop: () => {
       stream.getTracks().forEach((t) => t.stop());
-      void ctx.close();
+      void ctx.close().catch(() => {}); // already closed: nothing to release
     },
     setMuted: (m) => {
       muted = m;
@@ -110,6 +110,6 @@ export class PcmPlayer {
 
   close() {
     this.stop();
-    void this.ctx.close();
+    void this.ctx.close().catch(() => {}); // already closed: nothing to release
   }
 }

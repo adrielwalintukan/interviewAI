@@ -25,8 +25,13 @@ describe("buildPersonaPrompt", () => {
 
   it("states identity, language and opening line", () => {
     expect(prompt).toContain("Kamu adalah Bu Ratna, 45 tahun, Pemilik laundry.");
-    expect(prompt).toContain("Selalu berbicara dalam English.");
+    expect(prompt).toContain("Selalu berbicara dalam English, walaupun pewawancara memakai bahasa lain.");
     expect(prompt).toContain('"Silakan, saya cuma punya 15 menit."');
+  });
+
+  it("limits repeated verbal tics and keeps the session language on unclear input", () => {
+    expect(prompt).toMatch(/jangan membuka atau menutup setiap jawaban dengan kata yang sama/);
+    expect(prompt).toContain("minta mereka mengulang dalam English");
   });
 
   it("lists every fact with its id and difficulty rule", () => {
