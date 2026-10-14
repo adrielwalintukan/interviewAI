@@ -91,7 +91,7 @@ sequenceDiagram
   DB-->>P: notifikasi nilai final
 ```
 
-Kalau grading gagal (error provider atau JSON tidak valid), sistem mencoba ulang 2× dengan backoff, lalu memakai provider fallback. Kalau tetap gagal, status menjadi `grading_failed`, Pengajar bisa memicu penilaian ulang, dan pelajar melihat "Penilaian sedang diproses".
+Kalau grading gagal (error provider atau JSON tidak valid), sistem mencoba ulang 2× dengan backoff; di setiap percobaan gateway sudah memakai provider fallback bila provider utama gagal. Sesi yang ditutup timer tanpa "Akhiri" dinilai saat pemiliknya membuka halaman ringkasan. Sesi tanpa satu pun pertanyaan pelajar tidak dinilai. Kalau tetap gagal, status menjadi `grading_failed`, Pengajar bisa memicu penilaian ulang, dan pelajar melihat "Penilaian sedang diproses".
 
 ## 5. Mode Pustaka (latihan bebas)
 

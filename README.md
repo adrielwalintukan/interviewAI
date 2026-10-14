@@ -51,6 +51,12 @@ cp .env.example .env.local
 npm run dev
 ```
 
+Eval prompt grader (memanggil provider sungguhan dan memakai kuota; jalankan saat prompt/model grader berubah):
+
+```bash
+npm run eval
+```
+
 ## Setup Supabase (sekali)
 
 1. Jalankan file di `supabase/migrations/` **berurutan** di SQL Editor Supabase. Tunggu job CI `Database pgTAP & RLS Tests` hijau dulu.

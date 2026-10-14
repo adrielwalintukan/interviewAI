@@ -224,7 +224,7 @@ Nilai terbaik per tugas tidak disimpan sebagai kolom. Nilai ini dihitung lewat v
 | Tabel | Pelajar | Pengajar | Admin |
 |---|---|---|---|
 | `sessions`, `messages` | baris miliknya | sesi pada kelas miliknya + preview miliknya | semua |
-| `evaluations` | baca miliknya, tanpa kolom fakta mentah | baca + update override di kelasnya | semua |
+| `evaluations` | baca miliknya (`ai_result` hanya berisi id fakta, bukan isi fakta) | baca di kelasnya (update override: US-G-07) | semua |
 | `scenarios` (draf) | **tidak ada akses** | skenario buatannya | semua |
 | `scenario_version_secrets` | **tidak ada akses** | skenario buatannya | semua |
 | `scenario_versions` (brief) | versi yang ditugaskan ke kelasnya + versi publik terkini | buatannya + yang ditugaskan + publik terkini | semua |
@@ -244,12 +244,21 @@ Mutasi memakai **Server Actions** (tidak ada folder `app/api`). Setiap action me
 | `logTurn` | `features/interview/actions.ts` | Simpan giliran mode Live (≤ 2000 karakter) | pemilik sesi |
 | `chatTurn` | `features/interview/actions.ts` | Jawaban persona mode hemat | pemilik sesi |
 | `speakLastReply` | `features/interview/voice.ts` | Suara karakter mode hemat (Gemini TTS, sekali per jawaban via `claim_tts`) | pemilik sesi |
-| `endSession` | `features/interview/actions.ts` | Akhiri sesi | pemilik sesi |
+| `endSession` | `features/interview/actions.ts` | Akhiri sesi, lalu jadwalkan `gradeSession` dengan `after()` (tidak menahan redirect; `maxDuration` 300 dtk di halaman) | pemilik sesi |
 | `generateDraft`, `saveDraft`, `publishScenario`, `setScenarioPublic` | `features/scenario/actions.ts` | Generator & editor skenario | pengajar (penulis) |
 | `createClass`, `joinClass`, `bulkCreateStudents`, `createAssignment`, … | `features/classroom/actions.ts` | Kelas, anggota, tugas | sesuai peran |
 | `resetPassword`, `updateUserAccess` | `features/auth`, `features/admin` | Reset password, akses pengguna | admin/pengajar kelas |
 
-Penilaian (M4) dan override nilai belum diimplementasikan; bentuknya ditetapkan saat M4.
+**Penilaian (M4, `features/grading/`).** `gradeSession` berjalan sebagai service role setelah kepemilikan dicek: `claim_grading` → baca transkrip + rahasia skenario → `runGrader` (prompt `grader@1`, gateway task `grader`, `extractJson`, validasi Zod + validator bukti, hingga 3 percobaan dengan backoff 0/2/6 dtk, umpan balik saat JSON tidak valid) → `finish_grading`. Nilai dihitung di kode (`computeScore`). Halaman `/sesi/[id]/selesai` juga memicu `gradeSession` (lewat `after()`) bila pemiliknya membuka sesi yang sudah berakhir tapi belum dinilai, mis. sesi yang ditutup timer, lalu memuat ulang sendiri tiap 5 dtk selama diproses. Override nilai menyusul (US-G-07).
+
+### 8b. RPC penilaian (M4)
+
+Hanya `service_role` yang bisa memanggil; browser tidak pernah bisa menandai sesinya sendiri dinilai.
+
+| RPC | Aturan |
+|---|---|
+| `claim_grading(session_id)` | Ubah status ke `grading` bila: `ended`, `grading_failed`, `active` yang lewat `ends_at` + 1 mnt, atau `grading` yang macet > 10 mnt setelah selesai. Syarat: ada minimal satu giliran pelajar (sesi tanpa pertanyaan tetap `ended`, tidak dinilai). `false` bila tidak ada yang perlu dinilai, sehingga pemanggilan ganda aman |
+| `finish_grading(session_id, result, score, model, prompt_version)` | Hanya untuk sesi berstatus `grading`. `result` null → `grading_failed`; selain itu simpan `evaluations` (`final_score` = `ai_score` selama belum di-override) dan status `graded` |
 
 ### 8a. RPC sesi (M3)
 
