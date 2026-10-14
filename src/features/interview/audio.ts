@@ -72,7 +72,8 @@ export class PcmPlayer {
     return this.ctx.resume();
   }
 
-  play(b64: string) {
+  /** Resolves when this chunk finishes or is stopped. */
+  play(b64: string): Promise<void> {
     const pcm = base64ToInt16(b64);
     const buf = this.ctx.createBuffer(1, pcm.length, 24000);
     const ch = buf.getChannelData(0);
@@ -84,7 +85,12 @@ export class PcmPlayer {
     src.start(this.nextAt);
     this.nextAt += buf.duration;
     this.sources.add(src);
-    src.onended = () => this.sources.delete(src);
+    return new Promise((resolve) => {
+      src.onended = () => {
+        this.sources.delete(src);
+        resolve();
+      };
+    });
   }
 
   /** Learner interrupted: drop everything queued. */

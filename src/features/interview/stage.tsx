@@ -4,8 +4,9 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import { CharacterPortrait } from "@/features/scenario/character-portrait";
 import { chatTurn, endSession, logTurn, releaseLive, requestLiveToken } from "./actions";
 import { PcmPlayer, bytesToBase64, startMic, type Mic } from "./audio";
-import { listenOnce, speak, sttSupported } from "./fallback-speech";
+import { listenOnce, sttSupported } from "./fallback-speech";
 import { LiveConnection } from "./live-client";
+import { speakLastReply } from "./voice";
 
 type Speaker = "learner" | "character";
 type Turn = { speaker: Speaker; text: string };
@@ -17,7 +18,7 @@ export type StageProps = {
   endsAt: string;
   title: string;
   language: "id" | "en";
-  character: { name: string; hue: number; gender: string };
+  character: { name: string; hue: number };
   initialTurns: Turn[];
 };
 
@@ -45,8 +46,8 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
   const live = useRef<LiveConnection | null>(null);
   const mic = useRef<Mic | null>(null);
   const player = useRef<PcmPlayer | null>(null);
-  const fallbackLevel = useRef(0);
-  const stopSpeaking = useRef<() => void>(() => {});
+  // Bumped on every hush/new turn so a late TTS reply never plays over a newer one.
+  const speakId = useRef(0);
   const stopListening = useRef<() => void>(() => {});
   const pending = useRef({ learner: "", character: "" });
   const ringRef = useRef<HTMLDivElement>(null);
@@ -72,19 +73,25 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
     player.current = null;
   }, []);
 
+  const hush = useCallback(() => {
+    speakId.current += 1;
+    player.current?.stop();
+  }, []);
+
   const finish = useCallback(async () => {
     if (phaseRef.current === "ending") return;
     setPhaseBoth("ending");
     teardownLive();
-    stopSpeaking.current();
+    hush();
     stopListening.current();
     await endSession(sessionId); // redirects to the summary
-  }, [sessionId, teardownLive]);
+  }, [sessionId, teardownLive, hush]);
 
-  /** Fallback: send one learner turn, speak the reply. */
+  /** Fallback: send one learner turn, show the reply, then speak it in the character's voice. */
   const sendFallback = useCallback(
     async (text: string | null) => {
       if (text) pushTurn({ speaker: "learner", text });
+      const id = ++speakId.current;
       setActivity("thinking");
       const res = await chatTurn(sessionId, text);
       if (!res.ok) {
@@ -94,14 +101,23 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
         return;
       }
       if (!res.reply) return setActivity("idle");
+      // Text first; the voice follows a few seconds later (server TTS), the character stays "thinking".
       pushTurn({ speaker: "character", text: res.reply });
+      const { audio } = await speakLastReply(sessionId);
+      if (id !== speakId.current || phaseRef.current === "ending") return;
+      try {
+        if (!audio) throw new Error("no audio");
+        player.current ??= new PcmPlayer();
+        await player.current.resume();
+      } catch {
+        setNotice("Suara karakter sedang tidak tersedia — baca jawabannya di transkrip.");
+        return setActivity("idle");
+      }
       setActivity("speaking");
-      const s = speak(res.reply, language, character.gender, (l) => (fallbackLevel.current = l));
-      stopSpeaking.current = s.cancel;
-      await s.done;
-      setActivity("idle");
+      await player.current.play(audio);
+      if (id === speakId.current) setActivity("idle");
     },
-    [sessionId, language, character.gender, pushTurn, finish],
+    [sessionId, pushTurn, finish],
   );
 
   const goFallback = useCallback(
@@ -202,7 +218,7 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
     }
     if (phase !== "fallback") return;
     if (activity === "listening") return stopListening.current();
-    stopSpeaking.current(); // barge-in
+    hush(); // barge-in
     setActivity("listening");
     const l = listenOnce(language, (t) => setPartial((p) => ({ ...p, learner: t })));
     stopListening.current = l.stop;
@@ -224,7 +240,7 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
       void logTurn(sessionId, "learner", text);
       live.current.sendText(text);
     } else if (phase === "fallback") {
-      stopSpeaking.current();
+      hush();
       void sendFallback(text);
     }
   }
@@ -247,7 +263,7 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
   useEffect(() => {
     let raf = 0;
     const tick = () => {
-      const level = player.current?.level() ?? fallbackLevel.current;
+      const level = player.current?.level() ?? 0;
       ringRef.current?.style.setProperty("--level", level.toFixed(3));
       raf = requestAnimationFrame(tick);
     };
@@ -271,10 +287,10 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
   useEffect(
     () => () => {
       teardownLive();
-      stopSpeaking.current();
+      hush();
       stopListening.current();
     },
-    [teardownLive],
+    [teardownLive, hush],
   );
 
   const first = character.name;
@@ -303,7 +319,7 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
         <div className="flex items-center gap-3">
           {(phase === "live" || phase === "fallback") && (
             <span
-              title={phase === "live" ? "Suara dua arah realtime" : "Pengenal suara & suara browser (gratis)"}
+              title={phase === "live" ? "Suara dua arah realtime" : "Pengenal suara browser + suara karakter dari server"}
               className={`rounded-full border px-3 py-1 font-mono text-label uppercase ${phase === "live" ? "border-live/60 text-live" : "border-white/20 text-stage-ink-2"}`}
             >
               {phase === "live" ? "● Live" : "Mode hemat"}

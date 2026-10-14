@@ -15,7 +15,7 @@ type Row = {
     title: string;
     language: "id" | "en";
     client_name: string;
-    characters: { portrait_hue: number; gender: string } | null;
+    characters: { portrait_hue: number } | null;
   } | null;
 };
 
@@ -27,7 +27,7 @@ async function Room({ params }: { params: PageProps<"/sesi/[id]">["params"] }) {
   const supabase = await createClient();
   const { data: s } = await supabase
     .from("sessions")
-    .select("id, status, ends_at, v:scenario_versions(title, language, client_name, characters(portrait_hue, gender))")
+    .select("id, status, ends_at, v:scenario_versions(title, language, client_name, characters(portrait_hue))")
     .eq("id", id)
     .eq("user_id", user.id) // a teacher reading a student's session must not get the stage
     .maybeSingle<Row>();
@@ -42,7 +42,7 @@ async function Room({ params }: { params: PageProps<"/sesi/[id]">["params"] }) {
       endsAt={s.ends_at}
       title={s.v.title}
       language={s.v.language}
-      character={{ name: s.v.client_name, hue: s.v.characters?.portrait_hue ?? 30, gender: s.v.characters?.gender ?? "female" }}
+      character={{ name: s.v.client_name, hue: s.v.characters?.portrait_hue ?? 30 }}
       initialTurns={(messages ?? []).map((m) => ({ speaker: m.speaker as "learner" | "character", text: m.text as string }))}
     />
   );

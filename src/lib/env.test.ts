@@ -9,7 +9,7 @@ const SUPABASE = {
 async function freshEnv(vars: Record<string, string>) {
   vi.resetModules();
   vi.unstubAllEnvs();
-  for (const k of ["GEMINI_API_KEY", "NINEROUTER_BASE_URL", "NINEROUTER_API_KEY", "CHAT_MODEL", "GRADER_MODEL", "LIVE_MODEL", "GEMINI_FALLBACK_MODEL", ...Object.keys(SUPABASE)]) {
+  for (const k of ["GEMINI_API_KEY", "NINEROUTER_BASE_URL", "NINEROUTER_API_KEY", "CHAT_MODEL", "GRADER_MODEL", "LIVE_MODEL", "TTS_MODEL", "GEMINI_FALLBACK_MODEL", ...Object.keys(SUPABASE)]) {
     vi.stubEnv(k, "");
   }
   for (const [k, v] of Object.entries(vars)) vi.stubEnv(k, v);
@@ -24,6 +24,7 @@ describe("env", () => {
     expect(env.supabaseEnv().SUPABASE_SERVICE_ROLE_KEY).toBe("service");
     expect(() => env.llmEnv()).toThrow(/GEMINI_API_KEY/);
     expect(() => env.liveEnv()).toThrow(/LIVE_MODEL/);
+    expect(() => env.ttsEnv()).toThrow(/TTS_MODEL/);
   });
 
   it("names missing vars without echoing values", async () => {

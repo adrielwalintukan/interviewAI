@@ -22,6 +22,11 @@ const liveSchema = z.object({
   LIVE_MODEL: z.string().min(1),
 });
 
+const ttsSchema = z.object({
+  GEMINI_API_KEY: z.string().min(1),
+  TTS_MODEL: z.string().min(1),
+});
+
 // Parsed lazily so `next build` in CI works without secrets; fails loudly (names only) on first real use.
 function lazy<T extends z.ZodType>(schema: T) {
   let cached: z.infer<T> | undefined;
@@ -41,3 +46,5 @@ export const supabaseEnv = lazy(supabaseSchema);
 export const llmEnv = lazy(llmSchema);
 /** Gemini Live (M3). */
 export const liveEnv = lazy(liveSchema);
+/** Gemini TTS: the character's voice in mode hemat. */
+export const ttsEnv = lazy(ttsSchema);
