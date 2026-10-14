@@ -47,7 +47,7 @@ async function UserMenu() {
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="grain min-h-dvh">
-      <header className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-rule px-4 py-2 sm:px-8">
+      <header className="mx-auto flex print:hidden max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-rule px-4 py-2 sm:px-8">
         <Link href="/dashboard" className="inline-flex min-h-11 items-center font-display text-xl font-semibold tracking-tight">
           Interview AI
         </Link>

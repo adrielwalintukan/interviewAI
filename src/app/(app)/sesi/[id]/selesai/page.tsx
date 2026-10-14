@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { requireUser } from "@/features/auth/dal";
+import { DownloadPdfButton } from "@/features/interview/download-pdf";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Wawancara selesai — Interview AI" };
@@ -54,13 +55,14 @@ async function Summary({ params }: { params: PageProps<"/sesi/[id]/selesai">["pa
             <dd className="font-mono text-label uppercase text-ink-2">menit</dd>
           </div>
         </dl>
-        <p className="mt-8 border-l-2 border-ochre pl-4 text-sm text-ink-2">
+        <p className="mt-8 border-l-2 border-ochre pl-4 text-sm text-ink-2 print:hidden">
           Penilaian AI — fakta yang berhasil digali, kualitas pertanyaan, dan saran — hadir di pembaruan berikutnya. Transkrip ini sudah tersimpan.
         </p>
-        <div className="mt-8 flex flex-wrap gap-3">
+        <div className="mt-8 flex flex-wrap gap-3 print:hidden">
           <Link href={back} className="inline-flex min-h-11 items-center rounded-sm bg-ink px-5 text-paper hover:bg-accent">
             Kembali
           </Link>
+          {turns.length > 0 && <DownloadPdfButton fileName={`Transkrip ${s.v.title} ${s.started_at.slice(0, 10)}`} />}
           {isOwn && s.status === "active" && (
             <Link href={`/sesi/${s.id}`} className="inline-flex min-h-11 items-center rounded-sm border border-rule px-5 hover:border-ink">
               Lanjutkan sesi
@@ -69,7 +71,7 @@ async function Summary({ params }: { params: PageProps<"/sesi/[id]/selesai">["pa
         </div>
       </section>
 
-      <section aria-labelledby="transkrip-h" className="lg:col-span-8 lg:border-l lg:border-rule lg:pl-8">
+      <section aria-labelledby="transkrip-h" className="lg:col-span-8 lg:border-l lg:border-rule lg:pl-8 print:border-0 print:pl-0">
         <h2 id="transkrip-h" className="font-mono text-label uppercase text-ink-2">
           Transkrip ({turns.length} giliran)
         </h2>
@@ -78,7 +80,7 @@ async function Summary({ params }: { params: PageProps<"/sesi/[id]/selesai">["pa
         ) : (
           <ol className="mt-4 space-y-4">
             {turns.map((m) => (
-              <li key={m.seq} className="grid grid-cols-[2.5rem_1fr] gap-3 leading-relaxed">
+              <li key={m.seq} className="grid grid-cols-[2.5rem_1fr] gap-3 leading-relaxed break-inside-avoid">
                 <span className="pt-0.5 font-mono text-label text-ink-2">{String(m.seq).padStart(2, "0")}</span>
                 <p>
                   <span className={`mr-2 font-mono text-label uppercase ${m.speaker === "character" ? "text-accent" : "text-ink-2"}`}>
