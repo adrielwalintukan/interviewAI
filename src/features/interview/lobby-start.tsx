@@ -45,7 +45,7 @@ export function LobbyStart({
       stopRef.current = () => {
         cancelAnimationFrame(raf);
         stream.getTracks().forEach((t) => t.stop());
-        void ctx.close();
+        void ctx.close().catch(() => {}); // already closed: nothing to release
       };
       setTimeout(() => stopRef.current(), 8000);
     } catch {
