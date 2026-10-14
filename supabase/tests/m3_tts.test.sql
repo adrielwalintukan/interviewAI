@@ -1,6 +1,6 @@
 begin;
 
-select plan(12);
+select plan(13);
 
 set local role postgres;
 insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_data) values
@@ -32,8 +32,8 @@ select is(public.claim_tts('00000000-0000-0000-0000-0000000004aa'), null, 'learn
 select lives_ok($$ select public.append_message('00000000-0000-0000-0000-0000000004aa', 'character', 'Tentu.') $$, 'character says: Tentu.');
 select is(public.claim_tts('00000000-0000-0000-0000-0000000004aa'), 'Tentu.', 'next character reply is claimable');
 
--- No direct writes to the marker (RLS has no update policy: the update touches nothing)
-update public.messages set spoken_at = null;
+-- No direct writes to the marker: authenticated has no UPDATE privilege on messages at all
+select throws_ok($$ update public.messages set spoken_at = null $$, '42501', null, 'learner cannot reset the spoken marker');
 select is(public.claim_tts('00000000-0000-0000-0000-0000000004aa'), null, 'direct update cannot reset the marker');
 
 -- Closed sessions speak nothing
