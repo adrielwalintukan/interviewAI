@@ -4,7 +4,7 @@
 
 Interview AI adalah platform latihan **wawancara elisitasi kebutuhan** untuk sekolah dan kampus. Pelajar mewawancarai karakter AI 3D yang memerankan klien, pemilik bisnis, atau mitra. Karakter ini berbicara dan bereaksi secara realtime. Di setiap skenario tersimpan **fakta tersembunyi**: makin dalam dan tepat pertanyaan pelajar, makin banyak fakta yang terbuka. Setelah sesi selesai, AI menilai transkrip memakai rubrik, lalu Pengajar mereview hasilnya.
 
-Status: **M1 — Akun & Kelas** (lihat [roadmap](docs/roadmap.md)). Prototipe lama ada di `../AI Interview` (lihat [audit-legacy.md](docs/audit-legacy.md)).
+Status: **M3 — Ruang Wawancara** (avatar VRM menunggu aset) (lihat [roadmap](docs/roadmap.md)). Prototipe lama ada di `../AI Interview` (lihat [audit-legacy.md](docs/audit-legacy.md)).
 
 ## Indeks dokumen
 
@@ -29,7 +29,7 @@ Status: **M1 — Akun & Kelas** (lihat [roadmap](docs/roadmap.md)). Prototipe la
 - **Frontend:** Next.js 16 (App Router, TypeScript), Tailwind CSS v4, shadcn/ui (dikustom), Motion.
 - **Avatar 3D:** React Three Fiber + `@pixiv/three-vrm` 3.x.
 - **Backend & data:** Supabase (Postgres, Auth, RLS, Storage).
-- **Suara:** Gemini Live API, dengan fallback Web Speech API.
+- **Suara:** Gemini Live API, dengan fallback mode hemat (Web Speech API untuk mendengar, Gemini TTS untuk suara karakter).
 - **LLM teks:** 9router (OpenAI-compatible), dengan fallback Gemini API.
 - **Hosting:** Vercel.
 
@@ -78,6 +78,7 @@ Hanya nama variabel. Nilainya disimpan di `.env.local`, yang **tidak pernah** di
 | `CHAT_MODEL` | server | Model chat persona (mode fallback teks) |
 | `GRADER_MODEL` | server | Model penilai rubrik & generator skenario |
 | `LIVE_MODEL` | server | Model Gemini Live (native audio) |
+| `TTS_MODEL` | server | Model Gemini TTS untuk suara karakter di mode hemat (nama suara sama dengan Live) |
 | `GEMINI_FALLBACK_MODEL` | server | Model teks Gemini yang dipakai bila 9router gagal |
 | `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED` | client | `true` untuk menampilkan tombol login Google (setelah OAuth Client diisi di Supabase) |
 

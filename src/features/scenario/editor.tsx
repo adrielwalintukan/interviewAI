@@ -123,7 +123,7 @@ export function ScenarioEditor({
   id: string;
   initialDraft: ScenarioDraft;
   characters: EditorCharacter[];
-  published: { version: number; isPublic: boolean } | null;
+  published: { id: string; version: number; isPublic: boolean } | null;
 }) {
   const [draft, setDraft] = useState<ScenarioDraft>(initialDraft);
   const [save, setSave] = useState<SaveState>({ kind: "idle" });
@@ -397,6 +397,11 @@ export function ScenarioEditor({
             <Notice tone="ok">Skenario lengkap dan siap terbit.</Notice>
           )}
           <div className="mt-6 flex flex-wrap items-center gap-3">
+            {published && (
+              <a href={`/sesi/mulai?versi=${published.id}&jenis=preview`} className={buttonClass("ghost")}>
+                Uji coba v{published.version}
+              </a>
+            )}
             <button type="button" onClick={publish} disabled={publishing || problems.length > 0} className={buttonClass("primary")} aria-busy={publishing}>
               {publishing ? "Menerbitkan…" : published ? `Terbitkan versi ${published.version + 1}` : "Terbitkan"}
             </button>

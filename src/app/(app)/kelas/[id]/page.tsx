@@ -68,9 +68,9 @@ function AssignmentList({ rows, classId, isOwner }: { rows: AssignmentRow[]; cla
                 </button>
               </form>
             ) : (
-              <span className="inline-flex min-h-11 items-center rounded-sm border border-dashed border-rule px-3 text-sm text-ink-2" title="Ruang wawancara hadir di milestone berikutnya">
-                Segera dibuka
-              </span>
+              <Link href={`/sesi/mulai?tugas=${a.id}`} className="inline-flex min-h-11 items-center rounded-sm bg-accent px-4 text-sm font-medium text-accent-ink hover:bg-ink hover:text-paper">
+                Mulai<span className="sr-only"> wawancara {a.v?.title}</span>
+              </Link>
             )}
           </div>
         </li>

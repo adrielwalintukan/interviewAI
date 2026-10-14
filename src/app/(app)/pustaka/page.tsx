@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { requireUser } from "@/features/auth/dal";
 import { CharacterPortrait } from "@/features/scenario/character-portrait";
@@ -53,9 +54,13 @@ async function Library() {
               <span className="text-ink">{r.client_name}</span>, {r.client_occupation}. Peran pelajar: {r.learner_role}.
             </p>
             <p className="mt-2 line-clamp-3 text-sm text-ink-2">{r.objective}</p>
-            <p className="mt-3 font-mono text-label uppercase text-ink-2">
-              {user.role === "pengajar" ? "Berikan lewat halaman kelas → Beri tugas" : "Latihan bebas segera dibuka"}
-            </p>
+            {user.role === "pelajar" ? (
+              <Link href={`/sesi/mulai?versi=${r.id}&jenis=library`} className="mt-4 inline-flex min-h-11 items-center rounded-sm border border-ink px-4 text-sm hover:bg-ink hover:text-paper">
+                Latihan<span className="sr-only"> {r.title}</span>
+              </Link>
+            ) : (
+              <p className="mt-3 font-mono text-label uppercase text-ink-2">Berikan lewat halaman kelas → Beri tugas</p>
+            )}
           </div>
         </li>
       ))}

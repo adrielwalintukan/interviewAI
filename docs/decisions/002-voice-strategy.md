@@ -38,3 +38,4 @@ Pemilik project ingin percakapan voice-to-voice realtime, **asalkan gratis**. Ko
   - Constraints token ternyata tidak bisa mengunci `systemInstruction` → pindah ke relay di AWS.
   - Tingkat fallback di atas 30% → pertimbangkan billing.
   - Dipakai untuk ujian bernilai tinggi → relay server.
+- **Amandemen 2026-10-14 (suara mode hemat):** `speechSynthesis` diganti **Gemini TTS** (`TTS_MODEL`) dengan nama suara yang sama dengan karakter di Live. Alasan: uji nyata menunjukkan suara browser membaca kalimat Indonesia dengan pelafalan Inggris bila perangkat tidak punya suara id-ID, dan gender suaranya bisa tidak cocok dengan karakter. Konsekuensi: mode hemat kini memakai kuota Gemini (TTS) per jawaban karakter; bila TTS gagal/kuota habis, jawaban tampil sebagai teks saja (tidak memakai suara browser). Mendengar ucapan pelajar tetap memakai Web Speech API.
