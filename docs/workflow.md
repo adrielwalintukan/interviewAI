@@ -76,11 +76,11 @@ Aturan:
 ```mermaid
 sequenceDiagram
   participant P as Pelajar
-  participant S as Server (Route Handler)
+  participant S as Server (Server Action)
   participant L as LLM Gateway
   participant DB as Supabase
   participant G as Pengajar
-  P->>S: POST /api/sessions/:id/end
+  P->>S: endSession(sessionId)
   S->>DB: status = grading
   S->>L: grade(transkrip, fakta, rubrik) [GRADER_MODEL]
   L-->>S: JSON evaluasi (divalidasi Zod)

@@ -55,14 +55,10 @@ src/
       skenario/             editor (Pengajar)
       admin/
     sesi/[id]/              ruang wawancara (layout "panggung")
-    api/
-      live-token/           POST: ephemeral token Gemini Live
-      sessions/             start, messages, end
-      chat/                 fallback: stream jawaban persona
-      scenarios/generate/   generator skenario
-      grade/                (internal) penilaian
+    auth/callback/          OAuth callback (Route Handler)
+    keluar/                 sign-out (Route Handler)
   features/
-    interview/              voice controller, state machine, transcript
+    interview/              server actions sesi (actions.ts, voice.ts), voice controller, transcript
     avatar/                 VRM loader, lip-sync, idle/blink/gesture
     scenario/               editor, skema Zod
     grading/                grader, skema output
@@ -83,7 +79,7 @@ Struktur dipecah **per fitur**. Abstraksi baru dibuat hanya ketika pola yang sam
 ```mermaid
 sequenceDiagram
   participant B as Browser
-  participant S as /api/live-token
+  participant S as requestLiveToken (server action)
   participant G as Gemini API
   participant L as Gemini Live (WS)
   B->>S: POST {sessionId}
@@ -94,7 +90,7 @@ sequenceDiagram
   B->>L: connect(access_token)
   B->>L: audio mic PCM 16 kHz (stream)
   L-->>B: audio PCM 24 kHz + transkripsi input/output
-  B->>S: POST /api/sessions/:id/messages (per giliran)
+  B->>S: logTurn (server action, per giliran)
 ```
 
 - **Prompt dikunci di dalam token (terverifikasi spike 2026-10-14).** Server membuat token lewat `POST v1beta/auth_tokens` dengan `bidiGenerateContentSetup` lengkap (model, `systemInstruction`, voice, `responseModalities`, transkripsi) dan **tanpa `fieldMask`**. Menurut referensi API, setup efektif lalu "taken entirely from `bidiGenerateContentSetup`… the setup message from the Live API connection is ignored".
@@ -108,12 +104,13 @@ sequenceDiagram
 - **Durasi.** Durasi sesi maksimal mengikuti `expireTime` token, yang diset ≥ durasi tugas + 2 menit.
 - **Barge-in.** Ditangani oleh VAD bawaan Live API. Saat event interrupt datang, client menghentikan antrean audio yang sedang diputar.
 
-### 3.2 Mode Fallback (pipeline gratis)
+### 3.2 Mode Fallback (mode hemat)
 
 1. **Masuk mode fallback** saat: koneksi Live gagal dalam 5 detik, menerima error 429 atau error kuota, atau koneksi putus di tengah sesi.
 2. **STT.** Memakai `SpeechRecognition` (Web Speech API) dengan `lang` sesuai bahasa skenario. Kalau browser tidak mendukung, input teks menjadi input utama.
-3. **LLM.** `POST /api/chat`: server menyusun prompt persona + riwayat transkrip, lalu memanggil LLM Gateway (`CHAT_MODEL`). Jawaban di-stream.
-4. **TTS.** Memakai `speechSynthesis` dengan voice yang paling cocok untuk bahasa dan gender karakter.
+3. **LLM.** Server action `chatTurn`: server menyimpan giliran pelajar, menyusun prompt persona + riwayat transkrip, memanggil LLM Gateway (`CHAT_MODEL`), lalu menyimpan dan mengembalikan jawaban utuh (tidak di-stream).
+4. **TTS.** Server action `speakLastReply` (`src/features/interview/voice.ts`) membacakan jawaban karakter terakhir yang **sudah tersimpan** di sesi milik pelajar, **sekali per jawaban** lewat RPC `claim_tts` (browser tidak mengirim teks) lewat Gemini TTS (`TTS_MODEL`), dengan `live_voice` karakter yang sama dengan Live. Teks jawaban tampil dulu; audio (PCM 24 kHz) menyusul ±5–6 detik dan diputar oleh `PcmPlayer` yang sama dengan Live, sehingga lip-sync memakai level audio sungguhan. Bila TTS gagal/kuota habis: teks saja. `speechSynthesis` tidak dipakai: uji 2026-10-14 menunjukkan suara perangkat tanpa id-ID membaca bahasa Indonesia dengan pelafalan Inggris (ADR-002, amandemen).
+   - **Temuan uji Live 2026-10-14:** `gemini-3.8-live` dan `gemini-2.5-flash-native-audio-latest` melafalkan bahasa Indonesia dengan baik tanpa `languageCode`; mengirim `speechConfig.languageCode: "id-ID"` membuat keduanya tidak menjawab. Jadi `languageCode` tidak dikirim.
 
 ### 3.3 Kepercayaan transkrip
 
@@ -131,7 +128,8 @@ Satu modul `lib/llm/gateway.ts` memakai SDK `openai` dengan `baseURL` yang bisa 
 
 | Tugas | Utama | Fallback | Model env |
 |---|---|---|---|
-| Suara Live | Gemini Live (key langsung) | Pipeline gratis (§3.2) | `LIVE_MODEL` |
+| Suara Live | Gemini Live (key langsung) | Mode hemat (§3.2) | `LIVE_MODEL` |
+| Suara karakter mode hemat | Gemini TTS (key langsung) | Teks saja | `TTS_MODEL` |
 | Chat persona (fallback mode) | 9router | Gemini | `CHAT_MODEL` / `GEMINI_FALLBACK_MODEL` |
 | Penilaian rubrik | 9router | Gemini | `GRADER_MODEL` / `GEMINI_FALLBACK_MODEL` |
 | Generator skenario | 9router | Gemini | `GRADER_MODEL` |
@@ -152,7 +150,7 @@ Aturan:
 - **Lip-sync mode Live.** Audio PCM diputar lewat `AudioContext` dan disambungkan ke `AnalyserNode`.
   - **Amplitudo** (RMS) menggerakkan `aa`.
   - **Energi pita frekuensi** dipakai untuk memperkirakan vokal dan menggerakkan ekspresi VRM `aa/ih/ou/ee/oh`, dengan smoothing 60–80 ms.
-- **Lip-sync mode Fallback.** `speechSynthesis` tidak menyediakan stream audio. Karena itu dipakai event `onboundary` (batas kata) ditambah pemetaan huruf → vokal → viseme, dengan durasi yang diperkirakan dari rate bicara. Hasilnya cukup meyakinkan untuk karakter stylized.
+- **Lip-sync mode Fallback.** Audio Gemini TTS diputar lewat `PcmPlayer` yang sama dengan Live, jadi lip-sync memakai level audio sungguhan (bukan perkiraan dari teks).
 - **Hidup.**
   - Kedip acak setiap 2–6 detik.
   - Idle breathing dan look-at ke kamera (atau ke kursor di desktop).
@@ -194,7 +192,7 @@ erDiagram
 | `library_versions` (view) | Versi terkini dari skenario publik (`security_invoker`, RLS tetap berlaku) |
 | `assignments` | `id`, `class_id`, `scenario_version_id`, `due_at`, `duration_min` (15), `max_attempts` (3) |
 | `sessions` | `id`, `user_id`, `kind` (`assignment`/`library`/`preview`), `assignment_id` (null bila pustaka/preview atau tugas dihapus), `scenario_version_id`, `mode` (`live`/`fallback`), `status` (`active`/`ended`/`grading`/`graded`/`grading_failed`), `prompt_version`, `started_at`, `ends_at` (otoritatif server), `ended_at`. Ditulis hanya lewat RPC |
-| `messages` | PK `(session_id, seq)`, `speaker` (`learner`/`character`), `text` (≤ 2000), `created_at`. Ditulis hanya lewat `append_message()` |
+| `messages` | PK `(session_id, seq)`, `speaker` (`learner`/`character`), `text` (≤ 2000), `created_at`, `spoken_at` (jawaban karakter sudah dibacakan TTS mode hemat). Ditulis hanya lewat `append_message()` / `claim_tts()` |
 | `evaluations` | `session_id`, `ai_result` (jsonb), `ai_score`, `final_score`, `override` (jsonb), `reviewer_id`, `comment`, `grader_model`, `prompt_version` |
 | `llm_calls` | `id`, `task`, `provider`, `model`, `latency_ms`, `status`, `tokens_in/out`, `session_id?` |
 | `audit_log` | `actor_id`, `action`, `target`, `created_at` |
@@ -235,20 +233,23 @@ Nilai terbaik per tugas tidak disimpan sebagai kolom. Nilai ini dihitung lewat v
 
 Data yang perlu fakta (persona prompt, grader) dibaca oleh server dengan service role, setelah otorisasi dicek di kode. Detail lengkap: [security-privacy.md](security-privacy.md).
 
-## 8. API (Route Handlers)
+## 8. Server Actions & Route Handlers
 
-| Method & path | Fungsi | Auth |
-|---|---|---|
-| `POST /api/sessions` | Mulai sesi (cek tenggat, percobaan, kuota; attempt −1) | pelajar/pengajar |
-| `POST /api/live-token` | Ephemeral token Live untuk sesi aktif | pemilik sesi |
-| `POST /api/sessions/:id/messages` | Simpan giliran (validasi seq, panjang ≤ 2000) | pemilik sesi |
-| `POST /api/chat` | Stream jawaban persona (mode fallback) | pemilik sesi |
-| `POST /api/sessions/:id/end` | Akhiri + penilaian | pemilik sesi / sistem |
-| `POST /api/scenarios/generate` | Draf skenario dari ringkasan | pengajar |
-| `POST /api/evaluations/:id/override` | Override nilai | pengajar kelas |
-| `POST /api/classes/:id/bulk-students` | Buat akun massal dari CSV | pengajar kelas |
+Mutasi memakai **Server Actions** (tidak ada folder `app/api`). Setiap action memanggil `requireUser` → cek kepemilikan → validasi Zod → aksi/RPC. Route Handler hanya untuk `auth/callback` (OAuth) dan `keluar` (sign-out).
 
-Mutasi CRUD sederhana (kelas, tugas, edit skenario) memakai Server Actions. Semua input divalidasi dengan Zod.
+| Action | File | Fungsi | Auth |
+|---|---|---|---|
+| `startSession` | `features/interview/actions.ts` | Mulai sesi lewat RPC `start_session` (tenggat, percobaan, kuota) | pelajar/pengajar |
+| `requestLiveToken` / `releaseLive` | `features/interview/actions.ts` | Ephemeral token Live + slot Live | pemilik sesi |
+| `logTurn` | `features/interview/actions.ts` | Simpan giliran mode Live (≤ 2000 karakter) | pemilik sesi |
+| `chatTurn` | `features/interview/actions.ts` | Jawaban persona mode hemat | pemilik sesi |
+| `speakLastReply` | `features/interview/voice.ts` | Suara karakter mode hemat (Gemini TTS, sekali per jawaban via `claim_tts`) | pemilik sesi |
+| `endSession` | `features/interview/actions.ts` | Akhiri sesi | pemilik sesi |
+| `generateDraft`, `saveDraft`, `publishScenario`, `setScenarioPublic` | `features/scenario/actions.ts` | Generator & editor skenario | pengajar (penulis) |
+| `createClass`, `joinClass`, `bulkCreateStudents`, `createAssignment`, … | `features/classroom/actions.ts` | Kelas, anggota, tugas | sesuai peran |
+| `resetPassword`, `updateUserAccess` | `features/auth`, `features/admin` | Reset password, akses pengguna | admin/pengajar kelas |
+
+Penilaian (M4) dan override nilai belum diimplementasikan; bentuknya ditetapkan saat M4.
 
 ### 8a. RPC sesi (M3)
 
@@ -258,8 +259,9 @@ Mutasi CRUD sederhana (kelas, tugas, edit skenario) memakai Server Actions. Semu
 | `append_message(session_id, speaker, text)` | Pemilik; status aktif sampai `ends_at` + 1 mnt; `seq` berurutan (row lock); 30 giliran/menit |
 | `end_session(session_id)` | Pemilik |
 | `claim_live_slot(session_id, max)` / `release_live_slot` | Advisory lock; hitung sesi `live` aktif proyek. Server memanggilnya sebelum membuat token |
+| `claim_tts(session_id)` | Pemilik, sesi aktif; mengembalikan teks giliran terakhir **hanya** bila itu jawaban karakter yang belum dibacakan, lalu menandai `spoken_at`. Mencegah kuota TTS dihabiskan dengan memutar ulang |
 
-Server action di `src/features/interview/actions.ts`: `startSession`, `requestLiveToken`, `releaseLive`, `logTurn` (Live), `chatTurn` (mode hemat), `endSession`, `giveMicConsent`.
+Server action di `src/features/interview/actions.ts`: `startSession`, `requestLiveToken`, `releaseLive`, `logTurn` (Live), `chatTurn` (mode hemat), `endSession`, `giveMicConsent`; dan `speakLastReply` di `voice.ts`.
 
 **Catatan implementasi Live (M3):** browser mengirim `setup: { model }` saja (setup sebenarnya terkunci di token); audio mikrofon PCM16 16 kHz lewat AudioWorklet (`public/pcm-recorder-worklet.js`); audio balasan PCM 24 kHz diantrekan tanpa jeda; `interrupted` menghentikan antrean (barge-in). Pembuka Live dipicu isyarat teks yang tidak dicatat; pembuka mode hemat memakai `openingLine` tanpa LLM.
 
@@ -275,4 +277,4 @@ Server action di `src/features/interview/actions.ts`: `startSession`, `requestLi
 ## 10. Observability
 
 - **Tabel `llm_calls`** menjadi sumber halaman pemantauan Admin (sesi per hari, % fallback, error provider).
-- **Vercel logs** untuk error server. Error client dikirim ke route `/api/client-errors` (mudah diganti Sentry nanti).
+- **Vercel logs** untuk error server. Pelaporan error client (rencananya route `/api/client-errors`, mudah diganti Sentry) **belum diimplementasikan**.
