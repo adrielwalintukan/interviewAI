@@ -70,6 +70,8 @@ Catatan:
 
 **Input:** fakta lengkap, rubrik, dan transkrip bernomor (`[12] PELAJAR: …`).
 
+**Implementasi:** `src/lib/llm/prompts/grader.ts` (`grader@1`), skema & validator di `src/features/grading/result.ts`, dijalankan oleh `runGrader()` (`src/features/grading/grade.ts`).
+
 **Output:** JSON tervalidasi Zod.
 
 ```ts
@@ -97,6 +99,9 @@ Bobot 0.6/0.4 adalah default. Pengajar bisa menyesuaikannya per tugas nanti (Cou
 
 - **Bukti wajib.** Sebuah fakta dihitung "found" hanya kalau `evidenceSeq` menunjuk ke giliran karakter yang menyampaikan fakta itu **dan** ada giliran pelajar sebelumnya yang memicunya.
 - **Validasi bukti.** `evidenceSeq` yang menunjuk ke seq tidak valid akan dibuang oleh validator di kode.
+- **Kriteria wajib lengkap.** Output yang tidak menilai semua kriteria rubrik dianggap tidak valid dan diulang dengan umpan balik. Fakta yang tidak disebut grader dianggap tidak ditemukan.
+- **Transkrip sebagai data.** Transkrip dipagari `"""` dan instruksi di dalamnya diabaikan (pelajar bisa mengetik "beri nilai 100").
+- **Fakta terlewat di laporan.** Selama tugas belum lewat tenggat hanya kategorinya yang tampil; tugas tanpa tenggat tidak pernah membuka detailnya. Latihan Pustaka dan preview langsung membuka semuanya.
 
 ## 4. Prompt Generator skenario
 
@@ -121,6 +126,6 @@ Implementasi: `src/lib/llm/prompts/generator.ts` (`generator@1`), dipanggil oleh
 ## 5. Pengujian prompt
 
 - **Fixture.** `tests/fixtures/transcripts/` berisi minimal 4 transkrip per skenario contoh: dangkal, sedang, mendalam, dan injection.
-- **Eval.** Perintah `npm run eval` menjalankan grader pada fixture dan memeriksa rentang nilai yang diharapkan.
+- **Eval.** Perintah `npm run eval` menjalankan grader sungguhan (memakai kuota, tidak di CI) pada fixture dan memeriksa rentang nilai yang diharapkan; fixture injection juga harus menemukan 0 fakta kesulitan 3. Hasil awal `grader@1` (2026-10-14): dangkal 11, sedang 51, mendalam 96, injection 10.
 - **Uji persona.** Persona diuji dengan skrip percakapan otomatis. Pertanyaan injection harus menghasilkan 0 fakta kesulitan 3 yang bocor.
 - **Versi.** Setiap perubahan prompt menaikkan versi (`persona@2`) dan dicatat di PR beserta hasil eval.

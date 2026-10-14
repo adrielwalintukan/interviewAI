@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { isPast } from "@/lib/time";
 
 export const metadata = { title: "Ruang wawancara — Interview AI" };
+// endSession (a Server Action on this page) grades the transcript after responding; give that run room.
+export const maxDuration = 300;
 
 type Row = {
   id: string;

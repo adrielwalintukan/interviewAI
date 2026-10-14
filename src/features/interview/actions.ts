@@ -1,9 +1,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 import type { FormState } from "@/features/auth/actions";
 import { requireUser } from "@/features/auth/dal";
+import { gradeSession } from "@/features/grading/grade";
 import { liveEnv } from "@/lib/env";
 import { complete } from "@/lib/llm/gateway";
 import { PERSONA_PROMPT_VERSION, buildPersonaPrompt } from "@/lib/llm/prompts/persona";
@@ -181,10 +183,13 @@ export async function chatTurn(sessionId: string, text: string | null): Promise<
   }
 }
 
+/** Ends the caller's session and grades it after the response, so the redirect isn't held up (≤ minutes). */
 export async function endSession(sessionId: string): Promise<void> {
-  await requireUser({ roles: ["pelajar", "pengajar"] });
+  const user = await requireUser({ roles: ["pelajar", "pengajar"] });
   if (!uuid.safeParse(sessionId).success) redirect("/dashboard");
   const supabase = await createClient();
   await supabase.rpc("end_session", { p_session_id: sessionId });
+  const { data: own } = await supabase.from("sessions").select("id").eq("id", sessionId).eq("user_id", user.id).maybeSingle();
+  if (own) after(() => gradeSession(sessionId));
   redirect(`/sesi/${sessionId}/selesai`);
 }
