@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { CharacterPortrait } from "@/features/scenario/character-portrait";
 import { chatTurn, endSession, logTurn, releaseLive, requestLiveToken } from "./actions";
 import { PcmPlayer, bytesToBase64, startMic, type Mic } from "./audio";
@@ -21,6 +21,8 @@ export type StageProps = {
   initialTurns: Turn[];
 };
 
+const noSubscribe = () => () => {};
+
 const OPEN_CUE = "(Pewawancara masuk ruangan. Sapa dengan kalimat pembukamu.)";
 
 function fmt(ms: number) {
@@ -36,7 +38,9 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
   const [notice, setNotice] = useState<string>();
   const [muted, setMuted] = useState(false);
   const [draft, setDraft] = useState("");
-  const [remaining, setRemaining] = useState(() => Date.parse(endsAt) - Date.now());
+  // Clock and speech support exist only in the browser: null/false on the server avoids hydration mismatches.
+  const [remaining, setRemaining] = useState<number | null>(null);
+  const stt = useSyncExternalStore(noSubscribe, sttSupported, () => false);
 
   const live = useRef<LiveConnection | null>(null);
   const mic = useRef<Mic | null>(null);
@@ -251,7 +255,10 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  useEffect(() => transcriptEnd.current?.scrollIntoView({ block: "end" }), [turns, partial]);
+  useEffect(() => {
+    // Block body: newer Chromium returns a Promise from scrollIntoView, which an effect must not return.
+    transcriptEnd.current?.scrollIntoView({ block: "end" });
+  }, [turns, partial]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -283,11 +290,11 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
             : phase === "live"
               ? `${first} menunggu pertanyaanmu — bicara saja`
               : `${first} menunggu pertanyaanmu`;
-  const lowTime = remaining < 60_000;
-  const canTalk = phase === "live" || (phase === "fallback" && sttSupported());
+  const lowTime = remaining !== null && remaining < 60_000;
+  const canTalk = phase === "live" || (phase === "fallback" && stt);
 
   return (
-    <div className="stage stage-enter flex min-h-dvh flex-col">
+    <div className="stage stage-enter flex h-dvh flex-col overflow-hidden">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3 sm:px-8">
         <div className="min-w-0">
           <p className="font-mono text-label uppercase text-stage-ink-2">Ruang wawancara</p>
@@ -302,8 +309,8 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
               {phase === "live" ? "● Live" : "Mode hemat"}
             </span>
           )}
-          <span role="timer" aria-label={`Sisa waktu ${fmt(remaining)}`} className={`font-mono text-lg tabular-nums ${lowTime ? "text-live" : ""}`}>
-            {fmt(remaining)}
+          <span role="timer" aria-label={remaining === null ? "Sisa waktu" : `Sisa waktu ${fmt(remaining)}`} className={`font-mono text-lg tabular-nums ${lowTime ? "text-live" : ""}`}>
+            {remaining === null ? "--:--" : fmt(remaining)}
           </span>
           {phase !== "ready" && (
             <button type="button" onClick={confirmEnd} disabled={phase === "ending"} className="min-h-11 rounded-sm border border-white/20 px-4 text-sm hover:border-white/60 disabled:opacity-50">
@@ -313,15 +320,15 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
         </div>
       </header>
 
-      <div className="grid flex-1 lg:grid-cols-[minmax(0,1fr)_26rem]">
-        <section aria-label={`Karakter ${first}`} className="relative flex min-h-[46dvh] flex-col items-center justify-center overflow-hidden px-4 py-10">
+      <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_26rem] lg:grid-rows-1">
+        <section aria-label={`Karakter ${first}`} className="relative flex min-h-[36dvh] flex-col items-center justify-center overflow-hidden px-4 py-8 lg:min-h-0">
           <div aria-hidden className="spotlight pointer-events-none absolute inset-0" />
           <div ref={ringRef} className="speaking-ring relative" style={{ ["--level" as string]: 0 }}>
-            <div className="scale-[1.6] sm:scale-[1.9]">
+            <div className="scale-110 sm:scale-[1.6] lg:scale-[1.9]">
               <CharacterPortrait name={character.name} hue={character.hue} size="lg" />
             </div>
           </div>
-          <p role="status" className="relative mt-16 font-mono text-label uppercase text-stage-ink-2">
+          <p role="status" className="relative mt-10 text-center font-mono text-label uppercase text-stage-ink-2 sm:mt-16 lg:mt-24">
             {status}
           </p>
           {notice && (
@@ -343,7 +350,7 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
         </section>
 
         <aside className="flex min-h-0 flex-col border-t border-white/10 bg-stage-2 lg:border-t-0 lg:border-l">
-          <div aria-live="polite" aria-label="Transkrip" lang={language} className="max-h-[40dvh] flex-1 space-y-4 overflow-y-auto px-5 py-5 lg:max-h-none">
+          <div aria-live="polite" aria-label="Transkrip" lang={language} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
             {turns.length === 0 && !partial.character && !partial.learner && (
               <p className="text-sm text-stage-ink-2">Transkrip muncul di sini.</p>
             )}
@@ -410,7 +417,7 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
             <p className="mt-2 text-xs text-stage-ink-2">
               {phase === "live"
                 ? "Bicara langsung — kamu boleh memotong. Tombol mikrofon untuk membisukan."
-                : sttSupported()
+                : stt
                   ? "Tekan mikrofon, bicara, lalu tunggu jawaban. Esc untuk mengakhiri."
                   : "Browser ini tidak mendukung pengenal suara — ketik pertanyaanmu (Chrome/Edge disarankan)."}
             </p>

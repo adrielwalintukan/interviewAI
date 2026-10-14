@@ -193,8 +193,8 @@ erDiagram
 | `scenario_version_secrets` | **Rahasia**: `version_id`, `persona`, `facts` (F1..Fn), `rubric` (jsonb, divalidasi Zod `contentSchema`). Hanya penulis & admin; server membacanya untuk prompt/grader |
 | `library_versions` (view) | Versi terkini dari skenario publik (`security_invoker`, RLS tetap berlaku) |
 | `assignments` | `id`, `class_id`, `scenario_version_id`, `due_at`, `duration_min` (15), `max_attempts` (3) |
-| `sessions` | `id`, `user_id`, `assignment_id` (null = pustaka), `scenario_version_id`, `mode` (`live`/`fallback`), `status` (`active`/`grading`/`graded`/`grading_failed`), `prompt_version`, `started_at`, `ended_at` |
-| `messages` | `id`, `session_id`, `seq`, `speaker` (`learner`/`character`), `text`, `created_at` |
+| `sessions` | `id`, `user_id`, `kind` (`assignment`/`library`/`preview`), `assignment_id` (null bila pustaka/preview atau tugas dihapus), `scenario_version_id`, `mode` (`live`/`fallback`), `status` (`active`/`ended`/`grading`/`graded`/`grading_failed`), `prompt_version`, `started_at`, `ends_at` (otoritatif server), `ended_at`. Ditulis hanya lewat RPC |
+| `messages` | PK `(session_id, seq)`, `speaker` (`learner`/`character`), `text` (≤ 2000), `created_at`. Ditulis hanya lewat `append_message()` |
 | `evaluations` | `session_id`, `ai_result` (jsonb), `ai_score`, `final_score`, `override` (jsonb), `reviewer_id`, `comment`, `grader_model`, `prompt_version` |
 | `llm_calls` | `id`, `task`, `provider`, `model`, `latency_ms`, `status`, `tokens_in/out`, `session_id?` |
 | `audit_log` | `actor_id`, `action`, `target`, `created_at` |
@@ -249,6 +249,19 @@ Data yang perlu fakta (persona prompt, grader) dibaca oleh server dengan service
 | `POST /api/classes/:id/bulk-students` | Buat akun massal dari CSV | pengajar kelas |
 
 Mutasi CRUD sederhana (kelas, tugas, edit skenario) memakai Server Actions. Semua input divalidasi dengan Zod.
+
+### 8a. RPC sesi (M3)
+
+| RPC | Aturan |
+|---|---|
+| `start_session(kind, assignment_id, version_id, prompt_version)` | Satu sesi aktif per pengguna; tugas: anggota kelas + pelajar aktif, sebelum tenggat, percobaan tersisa (dihitung saat mulai); pustaka: versi publik terkini, 3/hari; preview: penulis aktif. Durasi = tugas / 15 / 10 menit |
+| `append_message(session_id, speaker, text)` | Pemilik; status aktif sampai `ends_at` + 1 mnt; `seq` berurutan (row lock); 30 giliran/menit |
+| `end_session(session_id)` | Pemilik |
+| `claim_live_slot(session_id, max)` / `release_live_slot` | Advisory lock; hitung sesi `live` aktif proyek. Server memanggilnya sebelum membuat token |
+
+Server action di `src/features/interview/actions.ts`: `startSession`, `requestLiveToken`, `releaseLive`, `logTurn` (Live), `chatTurn` (mode hemat), `endSession`, `giveMicConsent`.
+
+**Catatan implementasi Live (M3):** browser mengirim `setup: { model }` saja (setup sebenarnya terkunci di token); audio mikrofon PCM16 16 kHz lewat AudioWorklet (`public/pcm-recorder-worklet.js`); audio balasan PCM 24 kHz diantrekan tanpa jeda; `interrupted` menghentikan antrean (barge-in). Pembuka Live dipicu isyarat teks yang tidak dicatat; pembuka mode hemat memakai `openingLine` tanpa LLM.
 
 ## 9. Kuota & rate limit
 
