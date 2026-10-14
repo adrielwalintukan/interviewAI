@@ -27,12 +27,22 @@ export async function loadOwnActiveSession(sessionId: string, userId: string) {
     .maybeSingle<SessionRow>();
   if (!session || session.status !== "active" || Date.parse(session.ends_at) + 60_000 < Date.now()) return null;
 
+  const scenario = await loadScenarioContent(session.scenario_version_id);
+  if (!scenario) return null;
+  return { supabase, session, ...scenario };
+}
+
+/**
+ * Secret scenario content (persona, facts, rubric) via the service role.
+ * Callers MUST have checked the user's right to this session/version first.
+ */
+export async function loadScenarioContent(versionId: string) {
   const db = createAdminClient();
   const [{ data: version }, { data: secrets }] = await Promise.all([
     db
       .from("scenario_versions")
       .select("title, language, level, learner_role, objective, character_id, characters(live_voice, gender)")
-      .eq("id", session.scenario_version_id)
+      .eq("id", versionId)
       .single<{
         title: string;
         language: "id" | "en";
@@ -42,7 +52,7 @@ export async function loadOwnActiveSession(sessionId: string, userId: string) {
         character_id: string;
         characters: { live_voice: string; gender: string } | null;
       }>(),
-    db.from("scenario_version_secrets").select("persona, facts, rubric").eq("version_id", session.scenario_version_id).single(),
+    db.from("scenario_version_secrets").select("persona, facts, rubric").eq("version_id", versionId).single(),
   ]);
   if (!version || !secrets) return null;
 
@@ -57,5 +67,5 @@ export async function loadOwnActiveSession(sessionId: string, userId: string) {
     facts: secrets.facts,
     rubric: secrets.rubric,
   });
-  return { supabase, session, content, voice: version.characters?.live_voice ?? "Kore" };
+  return { content, voice: version.characters?.live_voice ?? "Kore" };
 }
