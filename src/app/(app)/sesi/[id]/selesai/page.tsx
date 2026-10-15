@@ -4,8 +4,10 @@ import { after } from "next/server";
 import { Suspense } from "react";
 import { requireUser } from "@/features/auth/dal";
 import { gradeSession } from "@/features/grading/grade";
+import { regradeSession } from "@/features/grading/actions";
 import { RefreshWhileGrading } from "@/features/grading/refresh-while-grading";
-import { revealMissed, triggerQuestion, type GradeResult, type Turn } from "@/features/grading/result";
+import { applyOverride, revealMissed, triggerQuestion, type GradeResult, type Override, type Turn } from "@/features/grading/result";
+import { ReviewForm } from "@/features/grading/review-form";
 import { loadScenarioContent } from "@/features/interview/context";
 import { DownloadPdfButton } from "@/features/interview/download-pdf";
 import { FACT_CATEGORIES } from "@/features/scenario/schema";
@@ -26,13 +28,16 @@ type Row = {
   ends_at: string;
   ended_at: string | null;
   scenario_version_id: string;
-  assignment: { class_id: string; due_at: string | null } | null;
+  assignment: { class_id: string; due_at: string | null; classes: { owner_id: string } | null } | null;
   v: { title: string; client_name: string } | null;
 };
 
 const LEVEL_LABEL = { 1: "Kurang", 2: "Cukup", 3: "Baik", 4: "Sangat baik" } as const;
 
-async function Report({ session, result, turns, isOwn }: { session: Row; result: GradeResult; turns: Turn[]; isOwn: boolean }) {
+type Graded = { score: number; aiScore: number; result: GradeResult; override: Override | null; comment: string | null; reviewed: boolean };
+
+async function Report({ session, graded, turns, isOwn, isReviewer }: { session: Row; graded: Graded; turns: Turn[]; isOwn: boolean; isReviewer: boolean }) {
+  const { result } = graded;
   // Fact text is secret: read with the service role only now that RLS has let this user see the session.
   const scenario = await loadScenarioContent(session.scenario_version_id);
   if (!scenario) return null;
@@ -51,16 +56,23 @@ async function Report({ session, result, turns, isOwn }: { session: Row; result:
           Laporan
         </h2>
         <p className="mt-3 max-w-prose text-lg leading-relaxed">{result.summary}</p>
+        {graded.comment && (
+          <blockquote className="mt-6 border-l-2 border-ink pl-4">
+            <p className="font-mono text-label uppercase text-ink-2">Komentar pengajar</p>
+            <p className="mt-1 whitespace-pre-line leading-relaxed">{graded.comment}</p>
+          </blockquote>
+        )}
       </div>
 
       <div>
         <h3 className="font-mono text-label uppercase text-ink-2">Rubrik</h3>
         <ul className="mt-3 divide-y divide-rule border-y border-rule">
-          {result.criteria.map((c) => (
+          {applyOverride(result, graded.override).map((c) => (
             <li key={c.criterion} className="grid gap-1 py-3 sm:grid-cols-[1fr_auto] sm:gap-x-6">
               <p className="font-medium">{c.criterion}</p>
               <p className="font-mono text-label uppercase text-ink-2 sm:row-span-2 sm:text-right">
                 <span className="font-display text-2xl tabular-nums text-ink">{c.level}</span>/4 · {LEVEL_LABEL[c.level]}
+                {c.level !== c.ai && <span className="block">AI: {c.ai}/4 · diubah pengajar</span>}
               </p>
               <p className="text-sm text-ink-2">{c.rationale}</p>
             </li>
@@ -144,6 +156,23 @@ async function Report({ session, result, turns, isOwn }: { session: Row; result:
           ))}
         </ol>
       </div>
+
+      {isReviewer && (
+        <div className="border-t border-rule pt-8 print:hidden">
+          <h3 className="font-mono text-label uppercase text-accent">Tinjau nilai</h3>
+          {result.anomalies.length > 0 && (
+            <ul className="mt-3 space-y-1 text-sm text-ink-2">
+              {result.anomalies.map((a) => (
+                <li key={a}>Catatan AI: {a}</li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-3 text-sm text-ink-2">Ubah level kriteria bila penilaian AI kurang tepat. Nilai final dihitung ulang dengan rumus yang sama.</p>
+          <div className="mt-5 max-w-md">
+            <ReviewForm sessionId={session.id} criteria={applyOverride(result, graded.override)} comment={graded.comment} />
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -157,7 +186,7 @@ async function Summary({ params }: { params: PageProps<"/sesi/[id]/selesai">["pa
   // RLS: the learner, their class teacher, or an admin.
   const { data: s } = await supabase
     .from("sessions")
-    .select("id, user_id, kind, mode, status, started_at, ends_at, ended_at, scenario_version_id, assignment:assignments(class_id, due_at), v:scenario_versions(title, client_name)")
+    .select("id, user_id, kind, mode, status, started_at, ends_at, ended_at, scenario_version_id, assignment:assignments(class_id, due_at, classes(owner_id)), v:scenario_versions(title, client_name)")
     .eq("id", id)
     .maybeSingle<Row>();
   if (!s?.v) notFound();
@@ -167,6 +196,8 @@ async function Summary({ params }: { params: PageProps<"/sesi/[id]/selesai">["pa
   const minutes = s.ended_at ? Math.max(1, Math.round((Date.parse(s.ended_at) - Date.parse(s.started_at)) / 60_000)) : null;
   const back = s.assignment ? `/kelas/${s.assignment.class_id}` : s.kind === "preview" ? "/skenario" : "/pustaka";
   const isOwn = s.user_id === user.id;
+  const isReviewer = user.role === "admin" || (user.role === "pengajar" && s.assignment?.classes?.owner_id === user.id);
+  const canRegrade = s.status === "grading_failed" && (isReviewer || (isOwn && s.kind !== "assignment"));
 
   const running = s.status === "active" && !isPast(new Date(Date.parse(s.ends_at) + 60_000).toISOString());
   // Ended (or timed out) but not graded yet: the owner's visit kicks off grading; claim_grading dedupes.
@@ -174,8 +205,22 @@ async function Summary({ params }: { params: PageProps<"/sesi/[id]/selesai">["pa
   if (pending && isOwn) after(() => gradeSession(s.id));
 
   // RLS: same readers as the session.
-  const { data: ev } = await supabase.from("evaluations").select("ai_result, final_score").eq("session_id", id).maybeSingle();
-  const graded = s.status === "graded" && ev ? { score: ev.final_score as number, result: ev.ai_result as GradeResult } : null;
+  const { data: ev } = await supabase
+    .from("evaluations")
+    .select("ai_result, ai_score, final_score, override, comment, reviewer_id")
+    .eq("session_id", id)
+    .maybeSingle();
+  const graded: Graded | null =
+    s.status === "graded" && ev
+      ? {
+          score: ev.final_score as number,
+          aiScore: ev.ai_score as number,
+          result: ev.ai_result as GradeResult,
+          override: ev.override as Override | null,
+          comment: ev.comment as string | null,
+          reviewed: ev.reviewer_id !== null,
+        }
+      : null;
 
   return (
     <div className="grid gap-10 lg:grid-cols-12">
@@ -184,9 +229,12 @@ async function Summary({ params }: { params: PageProps<"/sesi/[id]/selesai">["pa
         <h1 className="mt-3 font-display text-4xl font-medium tracking-tight text-balance">{s.v.title}</h1>
         {graded && (
           <p className="mt-6">
-            <span className="block font-mono text-label uppercase text-ink-2">Nilai</span>
+            <span className="block font-mono text-label uppercase text-ink-2">{graded.reviewed ? "Nilai final" : "Nilai"}</span>
             <span className="font-display text-7xl tabular-nums">{graded.score}</span>
             <span className="font-mono text-label uppercase text-ink-2"> / 100</span>
+            {graded.reviewed && graded.aiScore !== graded.score && (
+              <span className="block font-mono text-label uppercase text-ink-2">Nilai AI {graded.aiScore} · ditinjau pengajar</span>
+            )}
           </p>
         )}
         <dl className="mt-8 grid grid-cols-2 gap-6 border-t border-rule pt-6">
@@ -205,9 +253,9 @@ async function Summary({ params }: { params: PageProps<"/sesi/[id]/selesai">["pa
             {pending
               ? "Penilaian sedang diproses — biasanya kurang dari satu menit. Halaman ini akan diperbarui sendiri."
               : s.status === "grading_failed"
-                ? s.kind === "assignment"
-                  ? "Penilaian gagal diproses. Transkrip sudah tersimpan; pengajarmu bisa menilai ulang."
-                  : "Penilaian gagal diproses. Transkrip sudah tersimpan."
+                ? canRegrade
+                  ? "Penilaian gagal diproses. Transkrip sudah tersimpan; coba nilai ulang."
+                  : "Penilaian gagal diproses. Transkrip sudah tersimpan; pengajarmu bisa menilai ulang."
                 : "Tidak dinilai karena belum ada pertanyaan dalam sesi ini."}
           </p>
         )}
@@ -217,6 +265,14 @@ async function Summary({ params }: { params: PageProps<"/sesi/[id]/selesai">["pa
             Kembali
           </Link>
           {turns.length > 0 && <DownloadPdfButton fileName={`Transkrip ${s.v.title} ${s.started_at.slice(0, 10)}`} />}
+          {canRegrade && (
+            <form action={regradeSession}>
+              <input type="hidden" name="sessionId" value={s.id} />
+              <button type="submit" className="inline-flex min-h-11 items-center rounded-sm border border-ink px-5 hover:bg-ink hover:text-paper">
+                Nilai ulang
+              </button>
+            </form>
+          )}
           {isOwn && running && (
             <Link href={`/sesi/${s.id}`} className="inline-flex min-h-11 items-center rounded-sm border border-rule px-5 hover:border-ink">
               Lanjutkan sesi
@@ -228,7 +284,7 @@ async function Summary({ params }: { params: PageProps<"/sesi/[id]/selesai">["pa
       <div className="space-y-12 lg:col-span-8 lg:border-l lg:border-rule lg:pl-8 print:border-0 print:pl-0">
         {graded && (
           <Suspense fallback={<div className="h-64 animate-pulse rounded-md bg-paper-2" />}>
-            <Report session={s} result={graded.result} turns={turns} isOwn={isOwn} />
+            <Report session={s} graded={graded} turns={turns} isOwn={isOwn} isReviewer={isReviewer} />
           </Suspense>
         )}
 
