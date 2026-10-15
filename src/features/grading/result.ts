@@ -95,3 +95,11 @@ export function triggerQuestion(evidenceSeq: number[], transcript: Turn[]): Turn
 export function revealMissed(kind: "assignment" | "library" | "preview", duePassed: boolean): boolean {
   return kind !== "assignment" || duePassed;
 }
+
+/** Teacher override stored in evaluations.override (US-G-07): final level per rubric criterion. */
+export type Override = { criteria: Record<string, 1 | 2 | 3 | 4> };
+
+/** AI criteria with the teacher's levels applied; `ai` keeps the grader's level for display. */
+export function applyOverride(result: Pick<GradeResult, "criteria">, override: Override | null) {
+  return result.criteria.map((c) => ({ ...c, ai: c.level, level: override?.criteria[c.criterion] ?? c.level }));
+}
