@@ -49,10 +49,18 @@ export async function runGrader(content: ScenarioContent, transcript: Turn[]): P
  * Callers MUST have checked that the user may end/view this session; everything here runs as service role.
  */
 export async function gradeSession(sessionId: string): Promise<void> {
-  const db = createAdminClient();
-  const { data: claimed } = await db.rpc("claim_grading", { p_session_id: sessionId });
-  if (!claimed) return;
+  if (await claimGrading(sessionId)) await gradeClaimed(sessionId);
+}
 
+/** Moves the session to 'grading' (see claim_grading). Lets a caller show "diproses" before the run starts. */
+export async function claimGrading(sessionId: string): Promise<boolean> {
+  const { data } = await createAdminClient().rpc("claim_grading", { p_session_id: sessionId });
+  return data === true;
+}
+
+/** Grades a session this caller has just claimed; always ends in 'graded' or 'grading_failed'. */
+export async function gradeClaimed(sessionId: string): Promise<void> {
+  const db = createAdminClient();
   let run: GraderRun | null = null;
   try {
     const [{ data: session }, { data: rows }] = await Promise.all([
