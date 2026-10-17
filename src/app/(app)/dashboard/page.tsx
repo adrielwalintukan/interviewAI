@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { requireUser, type CurrentUser } from "@/features/auth/dal";
+import { partitionClasses } from "@/features/classroom/archive";
 import { CreateClassForm, JoinClassForm } from "@/features/classroom/components";
 import { createClient } from "@/lib/supabase/server";
 
@@ -28,26 +29,60 @@ async function ClassList({ user }: { user: CurrentUser }) {
     );
   }
 
+  const { active: activeClasses, archived: archivedClasses } = partitionClasses(classes);
+
   return (
-    <ol className="divide-y divide-rule border-y border-rule">
-      {classes.map((c, i) => (
-        <li key={c.id}>
-          <Link
-            href={`/kelas/${c.id}`}
-            className="group grid grid-cols-[2.5rem_1fr_auto] items-baseline gap-3 py-4 transition-colors hover:bg-paper-2/60"
-          >
-            <span className="font-mono text-label text-ink-2">{String(i + 1).padStart(2, "0")}</span>
-            <span className="font-display text-xl group-hover:text-accent">
-              {c.name}
-              {c.archived_at && <span className="ml-2 font-mono text-label uppercase text-ink-2">diarsipkan</span>}
-            </span>
-            {user.role === "pengajar" && (
-              <span className="font-mono text-label uppercase text-ink-2">{c.class_members[0]?.count ?? 0} pelajar</span>
-            )}
-          </Link>
-        </li>
-      ))}
-    </ol>
+    <div className="space-y-10">
+      <div>
+        {activeClasses.length === 0 ? (
+          <p className="border-l-2 border-rule pl-4 text-ink-2">Tidak ada kelas aktif.</p>
+        ) : (
+          <ol className="divide-y divide-rule border-y border-rule">
+            {activeClasses.map((c, i) => (
+              <li key={c.id}>
+                <Link
+                  href={`/kelas/${c.id}`}
+                  className="group grid grid-cols-[2.5rem_1fr_auto] items-baseline gap-3 py-4 transition-colors hover:bg-paper-2/60"
+                >
+                  <span className="font-mono text-label text-ink-2">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="font-display text-xl group-hover:text-accent">{c.name}</span>
+                  {user.role === "pengajar" && (
+                    <span className="font-mono text-label uppercase text-ink-2">{c.class_members[0]?.count ?? 0} pelajar</span>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+
+      {archivedClasses.length > 0 && (
+        <section>
+          <h2 className="font-mono text-label uppercase text-ink-2">Kelas diarsipkan ({archivedClasses.length})</h2>
+          <ol className="mt-3 divide-y divide-rule border-y border-rule">
+            {archivedClasses.map((c, i) => (
+              <li key={c.id}>
+                <Link
+                  href={`/kelas/${c.id}`}
+                  className="group grid grid-cols-[2.5rem_1fr_auto] items-baseline gap-3 py-3 text-ink-2 transition-colors hover:bg-paper-2/60 hover:text-ink"
+                >
+                  <span className="font-mono text-label text-ink-2">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="font-display text-lg group-hover:text-accent">
+                    {c.name}
+                    <span className="ml-2 font-mono text-label uppercase text-ink-2">diarsipkan</span>
+                  </span>
+                  {user.role === "pengajar" ? (
+                    <span className="font-mono text-label uppercase text-ink-2">{c.class_members[0]?.count ?? 0} pelajar</span>
+                  ) : (
+                    <span className="font-mono text-label uppercase text-ink-2">Diarsipkan</span>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+    </div>
   );
 }
 
