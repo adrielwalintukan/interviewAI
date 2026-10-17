@@ -103,8 +103,8 @@ export default function PrivasiPage() {
                   </tr>
                   <tr>
                     <td className="px-4 py-3 font-medium">Kata sandi akun</td>
-                    <td className="px-4 py-3 text-ink font-medium">Hanya hash satu arah</td>
-                    <td className="px-4 py-3 text-ink-2">Dienkripsi dengan bcrypt oleh Supabase Auth, tidak bisa dibaca siapa pun</td>
+                    <td className="px-4 py-3 text-ink font-medium">Hash satu arah</td>
+                    <td className="px-4 py-3 text-ink-2">Disimpan sebagai hash bcrypt satu arah oleh Supabase Auth; aplikasi tidak dapat membaca kata sandi asli</td>
                   </tr>
                   <tr>
                     <td className="px-4 py-3 font-medium">Metadata teknis sistem</td>
@@ -171,7 +171,7 @@ export default function PrivasiPage() {
               <div className="rounded-md border border-rule bg-paper-2 p-4">
                 <h3 className="font-display text-lg font-medium text-ink">Hak Unduh dan Hapus</h3>
                 <p className="mt-2 text-sm leading-relaxed text-ink-2">
-                  Pelajar berhak melihat dan mengunduh transkrip percakapan mereka sendiri. Permintaan penghapusan akun permanen dapat diajukan kepada administrator sekolah, yang akan menghapus data secara menyeluruh (cascade).
+                  Pelajar dapat melihat riwayat dan menyimpan transkrip sesi wawancara mereka sendiri dalam format dokumen (PDF) melalui halaman laporan sesi. Permintaan penghapusan akun permanen dapat diajukan kepada administrator sekolah, yang akan menghapus seluruh data terkait secara menyeluruh (cascade).
                 </p>
               </div>
             </div>
