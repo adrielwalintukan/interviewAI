@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { requireUser } from "@/features/auth/dal";
+import { SessionHistory, calculateRemainingQuota, type HistoryRow } from "@/features/interview/session-history";
 import { CharacterPortrait } from "@/features/scenario/character-portrait";
 import { LANGUAGES, LEVELS } from "@/features/scenario/schema";
 import { createClient } from "@/lib/supabase/server";
@@ -68,6 +69,61 @@ async function Library() {
   );
 }
 
+async function LibraryHistory() {
+  const user = await requireUser();
+  if (user.role !== "pelajar") return null;
+
+  const supabase = await createClient();
+  const todayStart = new Date(new Date().setUTCHours(0, 0, 0, 0)).toISOString();
+
+  // RLS: own sessions only. Explicit user_id filter enforces server authorization defense-in-depth.
+  const [{ data: rows, error: rowsError }, { count: todayCount, error: countError }] = await Promise.all([
+    supabase
+      .from("sessions")
+      .select("id, status, started_at, v:scenario_versions(title, client_name), evaluation:evaluations(final_score, ai_score)")
+      .eq("user_id", user.id)
+      .eq("kind", "library")
+      .order("started_at", { ascending: false })
+      .returns<HistoryRow[]>(),
+    supabase
+      .from("sessions")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("kind", "library")
+      .gte("started_at", todayStart),
+  ]);
+
+  if (rowsError || countError) {
+    return (
+      <section className="mt-16 max-w-3xl border-t border-rule pt-10">
+        <h2 className="font-mono text-label uppercase text-accent">Riwayat latihan</h2>
+        <p className="mt-4 border-l-2 border-rule pl-4 text-sm text-ink-2">
+          Gagal memuat riwayat latihan. Silakan muat ulang halaman.
+        </p>
+      </section>
+    );
+  }
+
+  const remainingQuota = calculateRemainingQuota(todayCount ?? 0);
+
+  return (
+    <section className="mt-16 max-w-3xl border-t border-rule pt-10">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-mono text-label uppercase text-accent">Riwayat latihan</h2>
+        <p className="text-xs text-ink-2">
+          Sisa latihan hari ini: <span className="font-mono text-ink">{remainingQuota}</span> dari 3 sesi
+        </p>
+      </div>
+      <div className="mt-4">
+        <SessionHistory
+          rows={rows ?? []}
+          empty="Belum ada riwayat latihan. Pilih salah satu skenario di atas untuk mulai berlatih."
+        />
+      </div>
+    </section>
+  );
+}
+
 export default function PustakaPage() {
   return (
     <>
@@ -81,6 +137,9 @@ export default function PustakaPage() {
           <Library />
         </Suspense>
       </div>
+      <Suspense fallback={<div className="mt-16 h-32 animate-pulse rounded-md bg-paper-2" />}>
+        <LibraryHistory />
+      </Suspense>
     </>
   );
 }
