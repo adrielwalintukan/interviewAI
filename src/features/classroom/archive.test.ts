@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { partitionClasses } from "./archive";
+import { checkClassCanAcceptAssignment, partitionClasses } from "./archive";
 
 describe("partitionClasses (production helper)", () => {
   it("separates active and archived classes while preserving order and extra fields", () => {
@@ -46,5 +46,36 @@ describe("partitionClasses (production helper)", () => {
     const result = partitionClasses(classes);
     expect(result.active).toHaveLength(0);
     expect(result.archived).toHaveLength(2);
+  });
+});
+
+describe("checkClassCanAcceptAssignment (fail-closed guard)", () => {
+  it("allows assignment creation when class is active and query succeeded", () => {
+    const res = checkClassCanAcceptAssignment({ archived_at: null }, null);
+    expect(res).toEqual({ ok: true });
+  });
+
+  it("rejects when class is archived", () => {
+    const res = checkClassCanAcceptAssignment({ archived_at: "2026-10-18T00:00:00.000Z" }, null);
+    expect(res).toEqual({
+      ok: false,
+      error: "Kelas sudah diarsipkan. Tidak dapat membuat tugas baru.",
+    });
+  });
+
+  it("fails closed when query returned an error", () => {
+    const res = checkClassCanAcceptAssignment(null, new Error("Database timeout"));
+    expect(res).toEqual({
+      ok: false,
+      error: "Kelas tidak ditemukan.",
+    });
+  });
+
+  it("fails closed when class data is null/not found", () => {
+    const res = checkClassCanAcceptAssignment(null, null);
+    expect(res).toEqual({
+      ok: false,
+      error: "Kelas tidak ditemukan.",
+    });
   });
 });

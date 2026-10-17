@@ -60,3 +60,15 @@ begin
   return v_id;
 end;
 $$;
+
+-- Enforce domain rule: assignments cannot be created in archived classes (US-G-01).
+drop policy if exists "assignments: owner creates" on public.assignments;
+create policy "assignments: owner creates" on public.assignments
+  for insert to authenticated with check (
+    public.is_class_owner(class_id)
+    and (select archived_at is null from public.classes where id = class_id)
+    and public.is_active_teacher()
+    and (public.is_scenario_author(public.version_scenario_id(scenario_version_id))
+         or public.is_public_current_version(scenario_version_id))
+  );
+

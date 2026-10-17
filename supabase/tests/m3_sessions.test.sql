@@ -1,6 +1,6 @@
 begin;
 
-select plan(27);
+select plan(28);
 
 select has_table('public', 'sessions', 'sessions exists');
 select has_table('public', 'messages', 'messages exists');
@@ -83,6 +83,14 @@ set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000003b1","role":"authenticated"}', true);
 select throws_ok($$ select public.start_session('assignment', '00000000-0000-0000-0000-0000000003f1', null, 'persona@1') $$,
   'P0001', 'class_archived', 'archived class assignment refused');
+
+-- Teacher cannot create assignment in archived class
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000003a1","role":"authenticated"}', true);
+select throws_ok(
+  $$ insert into public.assignments (class_id, scenario_version_id, duration_min, max_attempts)
+     values ('00000000-0000-0000-0000-0000000003c1', '00000000-0000-0000-0000-0000000003e1', 15, 2) $$,
+  '42501', null, 'cannot create assignment in archived class'
+);
 
 -- Unarchive class
 set local role postgres;

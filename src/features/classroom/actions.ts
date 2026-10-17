@@ -8,6 +8,7 @@ import { requireUser } from "@/features/auth/dal";
 import { usernameToEmail } from "@/features/auth/identifier";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { checkClassCanAcceptAssignment } from "./archive";
 import { generateInitialPassword, parseStudentCsv } from "./bulk-students";
 import { toDueInstant } from "./due-date";
 
@@ -176,14 +177,13 @@ export async function createAssignment(_: FormState, form: FormData): Promise<Fo
   if (dueAt && Date.parse(dueAt) < Date.now()) return { fieldErrors: { dueLocal: "Tenggat sudah lewat" } };
 
   const supabase = await createClient();
-  const { data: cls } = await supabase
+  const { data: cls, error: clsError } = await supabase
     .from("classes")
     .select("archived_at")
     .eq("id", classId)
     .maybeSingle();
-  if (cls?.archived_at) {
-    return { error: "Kelas sudah diarsipkan. Tidak dapat membuat tugas baru." };
-  }
+  const check = checkClassCanAcceptAssignment(cls, clsError);
+  if (!check.ok) return { error: check.error };
 
   // RLS: owner of the class, and the version is theirs or in the public library.
   const { error } = await supabase.from("assignments").insert({
