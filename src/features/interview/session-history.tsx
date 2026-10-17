@@ -9,12 +9,18 @@ export type HistoryRow = {
   v: { title: string; client_name: string } | null;
 };
 
+export const MAX_DAILY_LIBRARY_SESSIONS = 3;
+
+export function calculateRemainingQuota(todayCount: number): number {
+  return Math.max(0, MAX_DAILY_LIBRARY_SESSIONS - todayCount);
+}
+
 export const STATUS_LABEL: Record<string, string> = {
   active: "Berjalan",
   ended: "Selesai",
-  grading: "Dinilai",
+  grading: "Penilaian diproses",
   graded: "Sudah dinilai",
-  grading_failed: "Selesai",
+  grading_failed: "Penilaian gagal",
 };
 
 export function SessionHistory({

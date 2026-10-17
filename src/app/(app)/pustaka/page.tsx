@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { requireUser } from "@/features/auth/dal";
-import { SessionHistory, type HistoryRow } from "@/features/interview/session-history";
+import { SessionHistory, calculateRemainingQuota, type HistoryRow } from "@/features/interview/session-history";
 import { CharacterPortrait } from "@/features/scenario/character-portrait";
 import { LANGUAGES, LEVELS } from "@/features/scenario/schema";
 import { createClient } from "@/lib/supabase/server";
@@ -77,7 +77,7 @@ async function LibraryHistory() {
   const todayStart = new Date(new Date().setUTCHours(0, 0, 0, 0)).toISOString();
 
   // RLS: own sessions only. Explicit user_id filter enforces server authorization defense-in-depth.
-  const [{ data: rows }, { count: todayCount }] = await Promise.all([
+  const [{ data: rows, error: rowsError }, { count: todayCount, error: countError }] = await Promise.all([
     supabase
       .from("sessions")
       .select("id, status, started_at, v:scenario_versions(title, client_name)")
@@ -93,7 +93,18 @@ async function LibraryHistory() {
       .gte("started_at", todayStart),
   ]);
 
-  const remainingQuota = Math.max(0, 3 - (todayCount ?? 0));
+  if (rowsError || countError) {
+    return (
+      <section className="mt-16 max-w-3xl border-t border-rule pt-10">
+        <h2 className="font-mono text-label uppercase text-accent">Riwayat latihan</h2>
+        <p className="mt-4 border-l-2 border-rule pl-4 text-sm text-ink-2">
+          Gagal memuat riwayat latihan. Silakan muat ulang halaman.
+        </p>
+      </section>
+    );
+  }
+
+  const remainingQuota = calculateRemainingQuota(todayCount ?? 0);
 
   return (
     <section className="mt-16 max-w-3xl border-t border-rule pt-10">
