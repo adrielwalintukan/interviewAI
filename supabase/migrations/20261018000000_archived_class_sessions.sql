@@ -62,13 +62,20 @@ end;
 $$;
 
 -- Enforce domain rule: assignments cannot be created in archived classes (US-G-01).
+create or replace function public.is_active_class(p_class_id uuid) returns boolean
+language sql stable security definer set search_path = ''
+as $$
+  select exists (select 1 from public.classes where id = p_class_id and archived_at is null);
+$$;
+
 drop policy if exists "assignments: owner creates" on public.assignments;
 create policy "assignments: owner creates" on public.assignments
   for insert to authenticated with check (
     public.is_class_owner(class_id)
-    and (select archived_at is null from public.classes where id = class_id)
+    and public.is_active_class(class_id)
     and public.is_active_teacher()
     and (public.is_scenario_author(public.version_scenario_id(scenario_version_id))
          or public.is_public_current_version(scenario_version_id))
   );
+
 
