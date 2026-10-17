@@ -120,7 +120,7 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
     // RLS: own sessions only. Sessions of a deleted assignment lose their class link and drop out of this list.
     const { data: history } = await supabase
       .from("sessions")
-      .select("id, status, started_at, assignment:assignments!inner(class_id), v:scenario_versions(title, client_name)")
+      .select("id, status, started_at, assignment:assignments!inner(class_id), v:scenario_versions(title, client_name), evaluation:evaluations(final_score, ai_score)")
       .eq("user_id", user.id)
       .eq("assignment.class_id", id)
       .order("started_at", { ascending: false })

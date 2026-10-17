@@ -80,7 +80,7 @@ async function LibraryHistory() {
   const [{ data: rows, error: rowsError }, { count: todayCount, error: countError }] = await Promise.all([
     supabase
       .from("sessions")
-      .select("id, status, started_at, v:scenario_versions(title, client_name)")
+      .select("id, status, started_at, v:scenario_versions(title, client_name), evaluation:evaluations(final_score, ai_score)")
       .eq("user_id", user.id)
       .eq("kind", "library")
       .order("started_at", { ascending: false })
