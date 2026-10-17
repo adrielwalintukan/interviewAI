@@ -43,6 +43,13 @@ export function SignInForm({ next, error }: { next?: string; error?: string }) {
         </Link>
         . Akun dari pengajar? Masuk pakai username.
       </p>
+      <p className="mt-4 text-xs text-ink-2">
+        Dengan masuk, kamu menyetujui{" "}
+        <Link href="/privasi" className="underline underline-offset-4 hover:text-ink">
+          Kebijakan Privasi
+        </Link>{" "}
+        kami.
+      </p>
     </>
   );
 }
@@ -93,6 +100,13 @@ export function SignUpForm() {
         <Link href="/masuk" className="text-ink underline decoration-accent underline-offset-4">
           Masuk
         </Link>
+      </p>
+      <p className="mt-4 text-xs text-ink-2">
+        Dengan mendaftar, kamu menyetujui{" "}
+        <Link href="/privasi" className="underline underline-offset-4 hover:text-ink">
+          Kebijakan Privasi
+        </Link>{" "}
+        kami.
       </p>
     </>
   );

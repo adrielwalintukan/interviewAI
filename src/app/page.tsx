@@ -48,8 +48,11 @@ export default function Home() {
         </aside>
       </section>
 
-      <footer className="border-t border-rule pt-4 font-mono text-label uppercase text-ink-2">
-        Sedang dibangun · M1
+      <footer className="flex items-center justify-between border-t border-rule pt-4 font-mono text-label uppercase text-ink-2">
+        <span>Sedang dibangun · M1</span>
+        <Link href="/privasi" className="underline-offset-4 hover:text-ink hover:underline">
+          Kebijakan Privasi
+        </Link>
       </footer>
     </main>
   );
