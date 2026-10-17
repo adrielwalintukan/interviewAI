@@ -1,6 +1,6 @@
 begin;
 
-select plan(25);
+select plan(27);
 
 select has_table('public', 'sessions', 'sessions exists');
 select has_table('public', 'messages', 'messages exists');
@@ -74,6 +74,22 @@ set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000003b1","role":"authenticated"}', true);
 select throws_ok($$ select public.start_session('assignment', '00000000-0000-0000-0000-0000000003f1', null, 'persona@1') $$,
   'P0001', 'past_due', 'past-due assignment refused');
+
+-- Archived class (US-G-01 invariant)
+set local role postgres;
+update public.assignments set due_at = null;
+update public.classes set archived_at = now() where id = '00000000-0000-0000-0000-0000000003c1';
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000003b1","role":"authenticated"}', true);
+select throws_ok($$ select public.start_session('assignment', '00000000-0000-0000-0000-0000000003f1', null, 'persona@1') $$,
+  'P0001', 'class_archived', 'archived class assignment refused');
+
+-- Unarchive class
+set local role postgres;
+update public.classes set archived_at = null where id = '00000000-0000-0000-0000-0000000003c1';
+set local role authenticated;
+select lives_ok($$ select public.end_session(public.start_session('assignment', '00000000-0000-0000-0000-0000000003f1', null, 'persona@1')) $$,
+  'unarchived class assignment permitted');
 
 -- Library needs a public version; preview needs the author
 select throws_ok($$ select public.start_session('library', null, '00000000-0000-0000-0000-0000000003e1', 'persona@1') $$,

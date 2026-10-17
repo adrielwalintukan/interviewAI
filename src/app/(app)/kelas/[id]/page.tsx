@@ -139,7 +139,7 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
         <div className="mt-4 rounded-sm border border-ochre/40 bg-ochre/10 p-4 text-sm text-ochre">
           <p className="font-medium">Kelas ini diarsipkan</p>
           <p className="mt-1 text-ink-2">
-            Pelajar tidak dapat bergabung atau memulai tugas baru. Riwayat dan transkrip tetap dapat diakses. Data kelas akan dihapus permanen 1 tahun setelah diarsipkan.
+            Pelajar tidak dapat bergabung atau memulai tugas baru. Seluruh riwayat dan transkrip tetap dapat diakses.
           </p>
         </div>
       )}

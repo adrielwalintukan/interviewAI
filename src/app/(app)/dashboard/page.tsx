@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { requireUser, type CurrentUser } from "@/features/auth/dal";
+import { partitionClasses } from "@/features/classroom/archive";
 import { CreateClassForm, JoinClassForm } from "@/features/classroom/components";
 import { createClient } from "@/lib/supabase/server";
 
@@ -28,8 +29,7 @@ async function ClassList({ user }: { user: CurrentUser }) {
     );
   }
 
-  const activeClasses = classes.filter((c) => !c.archived_at);
-  const archivedClasses = classes.filter((c) => Boolean(c.archived_at));
+  const { active: activeClasses, archived: archivedClasses } = partitionClasses(classes);
 
   return (
     <div className="space-y-10">

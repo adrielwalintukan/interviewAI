@@ -12,7 +12,7 @@ export function ArchiveClassButton({
 }) {
   const message = isArchived
     ? "Buka kembali arsip kelas ini? Pelajar akan dapat bergabung kembali dan melanjutkan tugas."
-    : "Arsipkan kelas ini? Pelajar tidak bisa bergabung, tugas tidak bisa dimulai, dan seluruh data kelas ini akan dihapus permanen 1 tahun setelah diarsipkan (sesuai aturan retensi data).";
+    : "Arsipkan kelas ini? Pelajar tidak bisa bergabung dan tugas tidak bisa dimulai lagi. Seluruh riwayat dan transkrip tetap dapat diakses.";
 
   return (
     <form

@@ -18,6 +18,7 @@ const START_ERRORS: Record<string, string> = {
   active_session_exists: "Kamu masih punya sesi yang berjalan. Selesaikan dulu.",
   no_attempts_left: "Kesempatan untuk tugas ini sudah habis.",
   past_due: "Tenggat tugas ini sudah lewat.",
+  class_archived: "Kelas sudah diarsipkan. Tugas tidak bisa dimulai.",
   daily_quota: "Kuota latihan hari ini sudah habis (3 sesi). Coba lagi besok.",
   not_allowed: "Kamu tidak punya akses ke skenario ini.",
 };
