@@ -53,8 +53,10 @@ Sebagai Pelajar tanpa email, saya ingin login dengan username dan password awal 
 
 ## Pengajar
 
-### US-G-01 Membuat kelas (M)
+### US-G-01 Membuat & mengelola kelas (M)
 - **When** saya membuat kelas, **then** sistem membuat kode gabung 6–8 karakter yang bisa saya regenerasi.
+- **When** saya mengarsipkan kelas, **then** pelajar tidak dapat bergabung atau memulai tugas baru, aksi tambah tugas dan akun massal dinonaktifkan, dan kelas dipisahkan di dashboard. Seluruh riwayat dan transkrip tetap dapat diakses.
+- **When** saya membuka arsip kelas, **then** kelas kembali aktif, kode gabung aktif kembali, dan pelajar dapat melanjutkan tugas.
 
 ### US-G-02 Membuat akun pelajar massal (M)
 - **When** saya upload CSV (nama, username), **then** akun dibuat, langsung masuk ke kelas, dan saya bisa mengunduh daftar password awal **sekali saja**.

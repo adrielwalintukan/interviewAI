@@ -40,6 +40,19 @@ export async function startSession(_: FormState, form: FormData): Promise<FormSt
   const { kind, assignmentId, versionId } = parsed.data;
 
   const supabase = await createClient();
+  if (kind === "assignment") {
+    if (!assignmentId) return { error: "Permintaan tidak valid." };
+    const { data: asgn } = await supabase
+      .from("assignments")
+      .select("classes!inner(archived_at)")
+      .eq("id", assignmentId)
+      .maybeSingle();
+    const classData = asgn?.classes as unknown as { archived_at: string | null } | null;
+    if (classData?.archived_at) {
+      return { error: "Kelas sudah diarsipkan. Tugas tidak bisa dimulai." };
+    }
+  }
+
   const { data: id, error } = await supabase.rpc("start_session", {
     p_kind: kind,
     p_assignment_id: kind === "assignment" ? assignmentId : null,
