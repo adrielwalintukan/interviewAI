@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useRef, useState } from "react";
 import { Notice, SubmitButton } from "@/components/ui/form";
 import { giveMicConsent, startSession } from "./actions";
@@ -65,8 +66,11 @@ export function LobbyStart({
         <label className="flex items-start gap-3 rounded-md border border-rule p-4 text-sm leading-relaxed">
           <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-1 size-4 shrink-0 accent-[var(--color-accent)]" />
           <span>
-            Saya mengerti suara saya diproses oleh layanan AI pihak ketiga (Google) untuk percakapan dan <strong>tidak disimpan</strong>.
-            Yang disimpan hanya transkrip teks untuk penilaian.
+            Saya mengerti suara saya diproses oleh layanan AI pihak ketiga (Google Gemini dan penyedia perutean rekanan) untuk percakapan dan <strong>tidak disimpan</strong>. Yang disimpan hanya transkrip teks untuk penilaian. Pelajari selengkapnya di{" "}
+            <Link href="/privasi" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-ink">
+              Kebijakan Privasi
+            </Link>{" "}
+            (buka tab baru).
           </span>
         </label>
       )}

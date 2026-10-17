@@ -56,6 +56,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </Suspense>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-8 sm:py-12">{children}</main>
+      <footer className="mx-auto flex print:hidden max-w-6xl items-center justify-between border-t border-rule px-4 py-4 text-xs text-ink-2 sm:px-8">
+        <span>Interview AI</span>
+        <Link href="/privasi" className="underline-offset-4 hover:text-ink hover:underline">
+          Kebijakan Privasi
+        </Link>
+      </footer>
     </div>
   );
 }
