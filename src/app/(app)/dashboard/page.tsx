@@ -10,7 +10,7 @@ type ClassRow = { id: string; name: string; archived_at: string | null; class_me
 
 async function ClassList({ user }: { user: CurrentUser }) {
   const supabase = await createClient();
-  // RLS scopes this to owned classes (pengajar) or joined classes (pelajar).
+  // RLS scopes this to owned classes (pengajar), joined classes (pelajar), or all classes (admin).
   const { data } = await supabase
     .from("classes")
     .select("id, name, archived_at, class_members(count)")
@@ -23,7 +23,9 @@ async function ClassList({ user }: { user: CurrentUser }) {
       <p className="border-l-2 border-rule pl-4 text-ink-2">
         {user.role === "pengajar"
           ? "Belum ada kelas. Buat kelas baru, lalu bagikan kodenya ke pelajar."
-          : "Kamu belum bergabung ke kelas mana pun. Minta kode kelas ke pengajarmu."}
+          : user.role === "admin"
+            ? "Belum ada kelas di institusi ini."
+            : "Kamu belum bergabung ke kelas mana pun. Minta kode kelas ke pengajarmu."}
       </p>
     );
   }
@@ -41,7 +43,7 @@ async function ClassList({ user }: { user: CurrentUser }) {
               {c.name}
               {c.archived_at && <span className="ml-2 font-mono text-label uppercase text-ink-2">diarsipkan</span>}
             </span>
-            {user.role === "pengajar" && (
+            {user.role !== "pelajar" && (
               <span className="font-mono text-label uppercase text-ink-2">{c.class_members[0]?.count ?? 0} pelajar</span>
             )}
           </Link>
@@ -67,26 +69,28 @@ async function Dashboard() {
   }
 
   const isTeacher = user.role === "pengajar";
+  const isAdmin = user.role === "admin";
   return (
     <div className="grid gap-12 lg:grid-cols-12">
       <section className="lg:col-span-7">
-        <p className="font-mono text-label uppercase text-accent">01 — {isTeacher ? "Kelas Anda" : "Kelasmu"}</p>
+        <p className="font-mono text-label uppercase text-accent">01 — {isAdmin ? "Semua kelas" : isTeacher ? "Kelas Anda" : "Kelasmu"}</p>
         <h1 className="mt-3 font-display text-display font-medium tracking-tight">Halo, {user.displayName}.</h1>
         <div className="mt-8">
           <ClassList user={user} />
         </div>
       </section>
       <aside className="lg:col-span-5 lg:border-l lg:border-rule lg:pl-8">
-        <p className="font-mono text-label uppercase text-ink-2">02 — {isTeacher ? "Kelas baru" : "Gabung kelas"}</p>
-        <div className="mt-4">{isTeacher ? <CreateClassForm /> : user.role === "pelajar" ? <JoinClassForm /> : null}</div>
-        {user.role === "admin" && (
-          <p className="text-ink-2">
+        <p className="font-mono text-label uppercase text-ink-2">02 — {isAdmin ? "Admin" : isTeacher ? "Kelas baru" : "Gabung kelas"}</p>
+        {isAdmin ? (
+          <p className="mt-4 text-ink-2">
             Kelola akun & persetujuan pengajar di{" "}
             <Link href="/admin" className="text-ink underline decoration-accent underline-offset-4">
               halaman Admin
             </Link>
             .
           </p>
+        ) : (
+          <div className="mt-4">{isTeacher ? <CreateClassForm /> : <JoinClassForm />}</div>
         )}
       </aside>
     </div>
