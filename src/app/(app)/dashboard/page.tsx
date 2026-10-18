@@ -6,17 +6,23 @@ import { createClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Dashboard — Interview AI" };
 
-type ClassRow = { id: string; name: string; archived_at: string | null; class_members: { count: number }[] };
+type ClassRow = { id: string; name: string; archived_at: string | null; class_members: { profiles: { role: string } | null }[] };
 
 async function ClassList({ user }: { user: CurrentUser }) {
   const supabase = await createClient();
   // RLS scopes this to owned classes (pengajar), joined classes (pelajar), or all classes (admin).
-  const { data } = await supabase
+  // Role per member, not count: a member whose role an Admin changed (US-A-01) stays in class_members.
+  // shortcut: fetches one row per member, fine for a school; switch to a counting view if dashboards slow down.
+  const { data, error } = await supabase
     .from("classes")
-    .select("id, name, archived_at, class_members(count)")
+    .select("id, name, archived_at, class_members(profiles(role))")
     .order("created_at", { ascending: false })
     .returns<ClassRow[]>();
-  const classes = data ?? [];
+
+  if (error) {
+    return <p className="border-l-2 border-rule pl-4 text-ink-2">Gagal memuat daftar kelas. Silakan muat ulang halaman.</p>;
+  }
+  const classes = data;
 
   if (classes.length === 0) {
     return (
@@ -44,7 +50,7 @@ async function ClassList({ user }: { user: CurrentUser }) {
               {c.archived_at && <span className="ml-2 font-mono text-label uppercase text-ink-2">diarsipkan</span>}
             </span>
             {user.role !== "pelajar" && (
-              <span className="font-mono text-label uppercase text-ink-2">{c.class_members[0]?.count ?? 0} pelajar</span>
+              <span className="font-mono text-label uppercase text-ink-2">{c.class_members.filter((m) => m.profiles?.role === "pelajar").length} pelajar</span>
             )}
           </Link>
         </li>
