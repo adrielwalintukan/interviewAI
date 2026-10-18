@@ -33,7 +33,7 @@ insert into public.messages (session_id, seq, speaker, text) values
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000005b1","role":"authenticated"}', true);
 select throws_ok($$ select public.claim_grading('00000000-0000-0000-0000-0000000005aa') $$, '42501', null, 'learner cannot claim grading');
-select throws_ok($$ select public.finish_grading('00000000-0000-0000-0000-0000000005aa', '{}', 100, 'm', 'grader@1') $$, '42501', null, 'learner cannot store a result');
+select throws_ok($$ select public.finish_grading('00000000-0000-0000-0000-0000000005aa', '{}', 100, 100, 'm', 'grader@1') $$, '42501', null, 'learner cannot store a result');
 select throws_ok($$ insert into public.evaluations (session_id, ai_result, ai_score, grader_model, prompt_version)
   values ('00000000-0000-0000-0000-0000000005aa', '{}', 100, 'm', 'grader@1') $$, '42501', null, 'no direct insert into evaluations');
 
@@ -43,13 +43,13 @@ select is(public.claim_grading('00000000-0000-0000-0000-0000000005ac'), false, '
 select is(public.claim_grading('00000000-0000-0000-0000-0000000005ab'), false, 'a session without questions is not graded');
 select is(public.claim_grading('00000000-0000-0000-0000-0000000005aa'), true, 'an ended session with a question is claimed');
 select is(public.claim_grading('00000000-0000-0000-0000-0000000005aa'), false, 'a session being graded cannot be claimed twice');
-select lives_ok($$ select public.finish_grading('00000000-0000-0000-0000-0000000005aa', null, 0, '', 'grader@1') $$, 'a failed run is recorded');
+select lives_ok($$ select public.finish_grading('00000000-0000-0000-0000-0000000005aa', null, 0, 0, '', 'grader@1') $$, 'a failed run is recorded');
 select is((select status from public.sessions where id = '00000000-0000-0000-0000-0000000005aa'), 'grading_failed', 'status is grading_failed');
 select is(public.claim_grading('00000000-0000-0000-0000-0000000005aa'), true, 'a failed session can be graded again');
-select lives_ok($$ select public.finish_grading('00000000-0000-0000-0000-0000000005aa', '{"facts":[]}', 72, 'grader-x', 'grader@1') $$, 'a result is stored');
+select lives_ok($$ select public.finish_grading('00000000-0000-0000-0000-0000000005aa', '{"facts":[]}', 72, 72, 'grader-x', 'grader@1') $$, 'a result is stored');
 select results_eq($$ select s.status, e.ai_score::int, e.final_score::int from public.sessions s join public.evaluations e on e.session_id = s.id
   where s.id = '00000000-0000-0000-0000-0000000005aa' $$, $$ values ('graded'::text, 72, 72) $$, 'session graded, ai and final score stored');
-select lives_ok($$ select public.finish_grading('00000000-0000-0000-0000-0000000005aa', '{"facts":[]}', 5, 'late', 'grader@1') $$, 'a late duplicate run is ignored');
+select lives_ok($$ select public.finish_grading('00000000-0000-0000-0000-0000000005aa', '{"facts":[]}', 5, 5, 'late', 'grader@1') $$, 'a late duplicate run is ignored');
 select is((select ai_score::int from public.evaluations where session_id = '00000000-0000-0000-0000-0000000005aa'), 72, 'score untouched by a run that did not claim');
 
 -- Readers: owner and class teacher only
