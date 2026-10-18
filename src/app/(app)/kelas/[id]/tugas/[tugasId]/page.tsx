@@ -3,92 +3,27 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { requireUser } from "@/features/auth/dal";
 import { DueLabel, DueState, LocalTime } from "@/features/classroom/assignments";
-import { LEARNER_STATUS_LABEL, canSeeFactContent, learnerStatus, missedFacts, scoreHistogram } from "@/features/grading/class-dashboard";
-import type { GradeResult } from "@/features/grading/result";
+import { loadAssignmentResults } from "@/features/grading/assignment-results";
+import { LEARNER_STATUS_LABEL, canSeeFactContent, missedFacts, scoreHistogram } from "@/features/grading/class-dashboard";
 import { loadScenarioContent } from "@/features/interview/context";
 import { STATUS_LABEL } from "@/features/interview/session-history";
 import { FACT_CATEGORIES } from "@/features/scenario/schema";
-import { createClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Hasil tugas — Interview AI" };
-
-type AssignmentRow = {
-  id: string;
-  due_at: string | null;
-  max_attempts: number;
-  scenario_version_id: string;
-  classes: { name: string; owner_id: string } | null;
-  v: { title: string; scenarios: { author_id: string } | null } | null;
-};
-type SessionRow = {
-  id: string;
-  user_id: string;
-  status: string;
-  started_at: string;
-  profiles: { display_name: string } | null;
-  evaluations: { final_score: number; reviewer_id: string | null; ai_result: Pick<GradeResult, "facts"> } | null;
-};
-type Member = { user_id: string; profiles: { display_name: string; username: string | null } | null };
 
 const RANGES = Array.from({ length: 10 }, (_, i) => (i === 9 ? "90–100" : `${i * 10}–${i * 10 + 9}`));
 
 async function AssignmentResults({ params }: { params: PageProps<"/kelas/[id]/tugas/[tugasId]">["params"] }) {
   const user = await requireUser({ roles: ["pengajar", "admin"] });
   const { id, tugasId } = await params;
-  if (![id, tugasId].every((x) => /^[0-9a-f-]{36}$/i.test(x))) notFound();
 
-  const supabase = await createClient();
-  // RLS: class owner, members and admins read the assignment; only the owner or an admin gets this page.
-  // scenarios(author_id) is readable by its author and admins only, so it is null for other teachers.
-  const { data: a, error: aError } = await supabase
-    .from("assignments")
-    .select("id, due_at, max_attempts, scenario_version_id, classes(name, owner_id), v:scenario_versions(title, scenarios!scenario_id(author_id))")
-    .eq("id", tugasId)
-    .eq("class_id", id)
-    .maybeSingle<AssignmentRow>();
-  if (aError) throw aError; // a failed query must not read as 404
-  if (!a || !(user.role === "admin" || a.classes?.owner_id === user.id)) notFound();
+  const results = await loadAssignmentResults(user, id, tugasId);
+  if (!results) notFound();
+  const { assignment: a, learners, sessions } = results;
+  // Access checked by the loader. Fact content is dropped by missedFacts() unless canSeeFactContent().
+  const scenario = await loadScenarioContent(a.scenario_version_id);
+  const failed = results.failed || !scenario;
 
-  const [{ data: members, error: membersError }, { data: sessions, error: sessionsError }, { data: scores, error: scoresError }, scenario] = await Promise.all([
-    supabase
-      .from("class_members")
-      .select("user_id, profiles!inner(display_name, username, role)")
-      .eq("class_id", id)
-      .eq("profiles.role", "pelajar")
-      .order("joined_at", { ascending: true })
-      .returns<Member[]>(),
-    // ai_result holds fact ids/flags only; it is aggregated below and never rendered as is.
-    supabase
-      .from("sessions")
-      .select("id, user_id, status, started_at, profiles(display_name), evaluations(final_score, reviewer_id, ai_result)")
-      .eq("assignment_id", tugasId)
-      .order("started_at", { ascending: false })
-      .returns<SessionRow[]>(),
-    supabase.from("assignment_scores").select("user_id, attempts, best_score").eq("assignment_id", tugasId),
-    // Access checked above. Fact content is dropped by missedFacts() unless canSeeFactContent().
-    loadScenarioContent(a.scenario_version_id),
-  ]);
-  const failed = membersError || sessionsError || scoresError || !scenario;
-
-  const byUser = new Map<string, SessionRow[]>();
-  for (const s of sessions ?? []) byUser.set(s.user_id, [...(byUser.get(s.user_id) ?? []), s]);
-  const scoreOf = new Map((scores ?? []).map((s) => [s.user_id, s]));
-
-  const learners = (members ?? []).map((m) => {
-    const own = byUser.get(m.user_id) ?? [];
-    const best = scoreOf.get(m.user_id)?.best_score ?? null;
-    // Review link: the attempt that counts (best final score), else the latest attempt.
-    const link = own.find((s) => s.evaluations && s.evaluations.final_score === best) ?? own[0];
-    return {
-      id: m.user_id,
-      name: m.profiles?.display_name ?? "—",
-      status: learnerStatus(own.map((s) => s.status)),
-      attempts: scoreOf.get(m.user_id)?.attempts ?? 0,
-      best,
-      linkId: link?.id ?? null,
-      graded: own.flatMap((s) => (s.status === "graded" && s.evaluations ? [s.evaluations.ai_result] : [])),
-    };
-  });
   const bestScores = learners.flatMap((l) => (l.best === null ? [] : [l.best]));
   const bins = scoreHistogram(bestScores);
   const maxBin = Math.max(1, ...bins);
@@ -212,9 +147,9 @@ async function AssignmentResults({ params }: { params: PageProps<"/kelas/[id]/tu
 
           <section aria-labelledby="percobaan-h" className="mt-16 border-t border-rule pt-10 lg:max-w-4xl">
             <h2 id="percobaan-h" className="font-mono text-label uppercase text-accent">
-              04 — Semua percobaan ({sessions?.length ?? 0})
+              04 — Semua percobaan ({sessions.length})
             </h2>
-            {!sessions?.length ? (
+            {!sessions.length ? (
               <p className="mt-4 border-l-2 border-rule pl-4 text-ink-2">Belum ada pelajar yang mengerjakan tugas ini.</p>
             ) : (
               <ol className="mt-4 divide-y divide-rule border-y border-rule">
