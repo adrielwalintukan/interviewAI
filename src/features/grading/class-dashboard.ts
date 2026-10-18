@@ -69,7 +69,7 @@ export function missedFacts(
  */
 export function scoresCsv(rows: { name: string; username: string | null; attempts: number; best: number | null; status: LearnerStatus }[]): string {
   const lines = rows.map((r) => [r.name, r.username ?? "", String(r.attempts), r.best === null ? "" : String(r.best), LEARNER_STATUS_LABEL[r.status]].map(csvCell).join(","));
-  return "﻿" + ["nama,username,percobaan,nilai_final_terbaik,status", ...lines].join("\r\n") + "\r\n";
+  return String.fromCharCode(0xfeff) + ["nama,username,percobaan,nilai_final_terbaik,status", ...lines].join("\r\n") + "\r\n";
 }
 
 /** `nilai-<judul>-<YYYY-MM-DD>.csv`, ASCII only so every browser keeps the name. */

@@ -60,7 +60,8 @@ describe("scoresCsv", () => {
       { name: "=HYPERLINK(\"x\")", username: null, attempts: 0, best: null, status: "belum" },
       { name: "@ani", username: "-ani", attempts: 1, best: null, status: "selesai" },
     ]);
-    expect(csv.startsWith("﻿nama,username,percobaan,nilai_final_terbaik,status\r\n")).toBe(true);
+    expect(csv.charCodeAt(0)).toBe(0xfeff);
+    expect(csv.slice(1).startsWith("nama,username,percobaan,nilai_final_terbaik,status\r\n")).toBe(true);
     const rows = csv.slice(1).trimEnd().split("\r\n");
     expect(rows).toEqual([
       "nama,username,percobaan,nilai_final_terbaik,status",
