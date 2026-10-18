@@ -2,7 +2,7 @@ import "server-only";
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { llmEnv } from "@/lib/env";
-import { logLlmCall, type LogCall } from "./log";
+import { isTimeoutError, logLlmCall, type LogCall } from "./log";
 
 export type LlmTask = "chat" | "grader" | "generator";
 
@@ -87,7 +87,7 @@ export function createGateway(providers: Provider[], logCall: LogCall = logLlmCa
         attempts.push({ provider: p.name, error: err instanceof Error ? err.message : String(err) });
         lastError = err;
         const fallsBack = isFallbackError(err) && i < providers.length - 1;
-        const status = err instanceof OpenAI.APIConnectionTimeoutError ? "timeout" : fallsBack ? "fallback" : "error";
+        const status = isTimeoutError(err) ? "timeout" : fallsBack ? "fallback" : "error";
         await log({ task: input.task, provider: p.name, model, latencyMs: Date.now() - started, status, sessionId: input.sessionId });
         if (!fallsBack) break;
       }

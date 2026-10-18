@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { requireUser } from "@/features/auth/dal";
 import { ttsEnv } from "@/lib/env";
-import { logLlmCall } from "@/lib/llm/log";
+import { isTimeoutError, logLlmCall } from "@/lib/llm/log";
 import { loadOwnActiveSession } from "./context";
 
 const GEMINI = "https://generativelanguage.googleapis.com";
@@ -56,7 +56,7 @@ export async function speakLastReply(sessionId: string): Promise<{ audio: string
     await log(audio ? "ok" : "error");
     return { audio };
   } catch (err) {
-    await log(err instanceof DOMException && err.name === "TimeoutError" ? "timeout" : "error");
+    await log(isTimeoutError(err) ? "timeout" : "error");
     return { audio: null };
   }
 }

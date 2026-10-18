@@ -8,7 +8,7 @@ import { requireUser } from "@/features/auth/dal";
 import { gradeSession } from "@/features/grading/grade";
 import { liveEnv } from "@/lib/env";
 import { complete } from "@/lib/llm/gateway";
-import { logLlmCall } from "@/lib/llm/log";
+import { isTimeoutError, logLlmCall } from "@/lib/llm/log";
 import { PERSONA_PROMPT_VERSION, buildPersonaPrompt } from "@/lib/llm/prompts/persona";
 import { createClient } from "@/lib/supabase/server";
 import { loadOwnActiveSession } from "./context";
@@ -117,7 +117,7 @@ export async function requestLiveToken(sessionId: string): Promise<LiveGrant> {
     await log("ok");
     return { mode: "live", token: body.name, model };
   } catch (err) {
-    await log(err instanceof DOMException && err.name === "TimeoutError" ? "timeout" : "error");
+    await log(isTimeoutError(err) ? "timeout" : "error");
     await ctx.supabase.rpc("release_live_slot", { p_session_id: sessionId });
     return { mode: "fallback", reason: "unavailable" };
   }

@@ -98,6 +98,8 @@ describe("llm gateway", () => {
     };
     expect(await statuses(new OpenAI.APIConnectionTimeoutError(), apiError(503))).toEqual(["timeout", "error"]);
     expect(await statuses(apiError(400), apiError(503))).toEqual(["error"]);
+    // A refused/DNS connection error falls back but is not a timeout.
+    expect(await statuses(new OpenAI.APIConnectionError({ message: "refused" }), apiError(503))).toEqual(["fallback", "error"]);
   });
 
   it("uses the generator model for generator calls", async () => {

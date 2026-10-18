@@ -1,4 +1,5 @@
 import "server-only";
+import OpenAI from "openai";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /** One row per provider attempt in `llm_calls` (architecture §4). Metadata only: never prompt or transcript text. */
@@ -14,6 +15,15 @@ export type LlmCall = {
 };
 
 export type LogCall = (call: LlmCall) => Promise<void>;
+
+/**
+ * The one definition of status `timeout`: the OpenAI SDK's own timeout, or fetch aborted by
+ * AbortSignal.timeout() (DOMException "TimeoutError", while waiting for headers or the body).
+ * Other connection failures (refused, DNS) are not timeouts: `fallback` or `error`.
+ */
+export function isTimeoutError(err: unknown): boolean {
+  return err instanceof OpenAI.APIConnectionTimeoutError || (err instanceof DOMException && err.name === "TimeoutError");
+}
 
 /** Never throws and gives up after 2 s: a failed log must not break or stall the call it describes. */
 export const logLlmCall: LogCall = async (c) => {

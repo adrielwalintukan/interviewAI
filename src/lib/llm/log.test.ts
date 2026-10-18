@@ -9,7 +9,9 @@ vi.mock("@/lib/supabase/admin", () => ({
   },
 }));
 
-const { logLlmCall } = await import("./log");
+import OpenAI from "openai";
+
+const { isTimeoutError, logLlmCall } = await import("./log");
 const call = { task: "chat" as const, provider: "gemini" as const, model: "g", latencyMs: 12.6, status: "ok" as const };
 
 beforeEach(() => {
@@ -30,5 +32,23 @@ describe("logLlmCall", () => {
     await expect(logLlmCall(call)).resolves.toBeUndefined();
     admin.broken = true;
     await expect(logLlmCall(call)).resolves.toBeUndefined();
+  });
+});
+
+describe("isTimeoutError", () => {
+  it("is true for the SDK timeout and for fetch aborted by AbortSignal.timeout()", async () => {
+    expect(isTimeoutError(new OpenAI.APIConnectionTimeoutError())).toBe(true);
+    // The real error fetch throws for an AbortSignal.timeout() that has fired (not a hand-built lookalike).
+    const signal = AbortSignal.timeout(0);
+    await new Promise((r) => setTimeout(r, 10));
+    const timedOut = await fetch("data:text/plain,x", { signal }).catch((e: unknown) => e);
+    expect(isTimeoutError(timedOut)).toBe(true);
+  });
+
+  it("is false for other connection failures and errors", () => {
+    expect(isTimeoutError(new OpenAI.APIConnectionError({ message: "refused" }))).toBe(false);
+    expect(isTimeoutError(new TypeError("fetch failed"))).toBe(false);
+    expect(isTimeoutError(new DOMException("aborted", "AbortError"))).toBe(false);
+    expect(isTimeoutError(new Error("token 500"))).toBe(false);
   });
 });
