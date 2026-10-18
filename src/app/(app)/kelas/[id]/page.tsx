@@ -73,6 +73,15 @@ type AssignmentRow = {
 };
 
 /** `asTeacher`: teacher wording, no Mulai. `canEdit`: the class owner (admin only reads; the actions are pengajar-only). */
+/** A failed query must not read as "nothing here yet"; same wording as the Hasil wawancara error. */
+function LoadError({ what }: { what: string }) {
+  return (
+    <p role="alert" className="border-l-2 border-accent pl-4 text-accent">
+      {what} gagal dimuat. Muat ulang halaman ini; bila masih gagal, hubungi admin.
+    </p>
+  );
+}
+
 function AssignmentList({ rows, classId, asTeacher, canEdit }: { rows: AssignmentRow[]; classId: string; asTeacher: boolean; canEdit: boolean }) {
   if (rows.length === 0) {
     return (
@@ -146,7 +155,7 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
   const isAdmin = user.role === "admin" && !isOwner;
 
   // RLS: owner, members of this class, and admins.
-  const { data: assignmentData } = await supabase
+  const { data: assignmentData, error: assignmentError } = await supabase
     .from("assignments")
     .select(
       "id, due_at, duration_min, max_attempts, v:scenario_versions(title, version, client_name, client_occupation, learner_role, objective, characters(portrait_hue))",
@@ -180,7 +189,7 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
         <section className="mt-10 max-w-3xl">
           <p className="font-mono text-label uppercase text-accent">Tugas wawancara</p>
           <div className="mt-4">
-            <AssignmentList rows={assignments} classId={cls.id} asTeacher={false} canEdit={false} />
+            {assignmentError ? <LoadError what="Daftar tugas" /> : <AssignmentList rows={assignments} classId={cls.id} asTeacher={false} canEdit={false} />}
           </div>
         </section>
         <section className="mt-12 max-w-3xl">
@@ -221,7 +230,7 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
     .limit(100)
     .returns<ResultRow[]>();
 
-  const { data: members } = await supabase
+  const { data: members, error: membersError } = await supabase
     .from("class_members")
     .select("user_id, joined_at, profiles(display_name, username, role)")
     .eq("class_id", id)
@@ -234,9 +243,9 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
       {isAdmin && <p className="mt-3 text-ink-2">Tampilan admin, hanya baca. Kelas ini dikelola pengajarnya.</p>}
       <div className="mt-10 grid gap-12 lg:grid-cols-12">
         <section className="lg:col-span-7">
-          <p className="font-mono text-label uppercase text-accent">01 — Tugas ({assignments.length})</p>
+          <p className="font-mono text-label uppercase text-accent">01 — Tugas{assignmentError ? "" : ` (${assignments.length})`}</p>
           <div className="mt-4">
-            <AssignmentList rows={assignments} classId={cls.id} asTeacher canEdit={isOwner} />
+            {assignmentError ? <LoadError what="Daftar tugas" /> : <AssignmentList rows={assignments} classId={cls.id} asTeacher canEdit={isOwner} />}
           </div>
         </section>
         {isOwner && (
@@ -262,25 +271,33 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
       </section>
       <div className="mt-16 grid gap-12 border-t border-rule pt-10 lg:grid-cols-12">
         <section className="lg:col-span-5">
-          <p className="font-mono text-label uppercase text-accent">{isOwner ? "03" : "02"} — Kode gabung</p>
-          <p className="mt-3 font-mono text-[clamp(2.5rem,8vw,4rem)] leading-none tracking-[0.18em]" aria-label={`Kode kelas ${cls.join_code.split("").join(" ")}`}>
-            {cls.join_code}
-          </p>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <CopyCode code={cls.join_code} />
-            {isOwner && (
-              <form action={regenerateJoinCode}>
-                <input type="hidden" name="classId" value={cls.id} />
-                <button type="submit" className="min-h-11 rounded-sm px-4 text-sm text-ink-2 underline-offset-4 hover:text-ink hover:underline">
-                  Buat kode baru
-                </button>
-              </form>
-            )}
-          </div>
-          {isOwner && <p className="mt-3 text-sm text-ink-2">Kode lama langsung tidak berlaku setelah dibuat ulang.</p>}
+          {isOwner && (
+            <>
+              <p className="font-mono text-label uppercase text-accent">03 — Kode gabung</p>
+              <p className="mt-3 font-mono text-[clamp(2.5rem,8vw,4rem)] leading-none tracking-[0.18em]" aria-label={`Kode kelas ${cls.join_code.split("").join(" ")}`}>
+                {cls.join_code}
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <CopyCode code={cls.join_code} />
+                <form action={regenerateJoinCode}>
+                  <input type="hidden" name="classId" value={cls.id} />
+                  <button type="submit" className="min-h-11 rounded-sm px-4 text-sm text-ink-2 underline-offset-4 hover:text-ink hover:underline">
+                    Buat kode baru
+                  </button>
+                </form>
+              </div>
+              <p className="mb-12 mt-3 text-sm text-ink-2">Kode lama langsung tidak berlaku setelah dibuat ulang.</p>
+            </>
+          )}
 
-          <p className="mt-12 font-mono text-label uppercase text-accent">{isOwner ? "04" : "03"} — Pelajar ({members?.length ?? 0})</p>
-          {members && members.length > 0 ? (
+          <p className="font-mono text-label uppercase text-accent">
+            {isOwner ? "04" : "02"} — Pelajar{membersError ? "" : ` (${members?.length ?? 0})`}
+          </p>
+          {membersError ? (
+            <div className="mt-3">
+              <LoadError what="Daftar pelajar" />
+            </div>
+          ) : members && members.length > 0 ? (
             <ol className="mt-3 divide-y divide-rule border-y border-rule">
               {members.map((m, i) => (
                 <li key={m.user_id} className="grid grid-cols-[2rem_1fr] gap-x-3 gap-y-1 py-2.5 text-sm sm:grid-cols-[2rem_1fr_auto]">
