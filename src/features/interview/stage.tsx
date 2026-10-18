@@ -52,6 +52,7 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
   const pending = useRef({ learner: "", character: "" });
   const ringRef = useRef<HTMLDivElement>(null);
   const transcriptEnd = useRef<HTMLDivElement>(null);
+  const endDialog = useRef<HTMLDialogElement>(null);
   const phaseRef = useRef<Phase>("ready");
   const turnCount = useRef(initialTurns.length);
 
@@ -257,8 +258,8 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
   }
 
   const confirmEnd = useCallback(() => {
-    if (window.confirm("Akhiri wawancara sekarang? Percakapan disimpan dan tidak bisa dilanjutkan.")) void finish();
-  }, [finish]);
+    if (!endDialog.current?.open) endDialog.current?.showModal();
+  }, []);
 
   // Server-authoritative clock: auto-ends at ends_at.
   useEffect(() => {
@@ -289,7 +290,8 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && phaseRef.current !== "ready" && phaseRef.current !== "ending") confirmEnd();
+      // Esc while the dialog is open closes it (native cancel), so don't reopen it here.
+      if (e.key === "Escape" && !endDialog.current?.open && phaseRef.current !== "ready" && phaseRef.current !== "ending") confirmEnd();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -451,6 +453,39 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
           </div>
         </aside>
       </div>
+
+      <dialog
+        ref={endDialog}
+        aria-labelledby="end-title"
+        aria-describedby="end-desc"
+        onClick={(e) => e.target === e.currentTarget && endDialog.current?.close()}
+        className="m-auto w-[min(26rem,calc(100vw-2rem))] rounded-md border border-white/15 bg-stage-2 p-0 text-stage-ink shadow-float backdrop:bg-black/60"
+      >
+        <div className="p-6">
+          <p className="font-mono text-label uppercase text-stage-ink-2">Akhiri wawancara</p>
+          <h2 id="end-title" className="mt-2 font-display text-2xl">
+            Sudahi wawancara dengan {first}?
+          </h2>
+          <p id="end-desc" className="mt-3 text-sm leading-relaxed text-stage-ink-2">
+            Percakapanmu disimpan lalu langsung dinilai. Sesi ini tidak bisa dilanjutkan lagi.
+          </p>
+          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button type="button" autoFocus onClick={() => endDialog.current?.close()} className="min-h-11 rounded-sm border border-white/20 px-4 text-sm hover:border-white/60">
+              Lanjutkan wawancara
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                endDialog.current?.close();
+                void finish();
+              }}
+              className="min-h-11 rounded-sm bg-accent px-4 text-sm font-medium text-accent-ink hover:bg-stage-ink hover:text-stage"
+            >
+              Akhiri sekarang
+            </button>
+          </div>
+        </div>
+      </dialog>
     </div>
   );
 }
