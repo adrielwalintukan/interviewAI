@@ -145,6 +145,9 @@ Aturan:
 - **Pencatatan.** Setiap **percobaan provider** mencatat satu baris di `llm_calls` (`src/lib/llm/log.ts`): task, provider, model, latensi, status, jumlah token bila ada di respons, dan `session_id` bila panggilan milik sesi. Isi prompt, transkrip, dan secret tidak ikut dicatat.
   - Task: `chat`, `grader`, `generator` (lewat gateway; `generator` memakai `GRADER_MODEL` / `GEMINI_FALLBACK_MODEL`, timeout 60 dtk), `live` (pembuatan token Gemini Live di `requestLiveToken`), `tts` (`speakLastReply`).
   - Status: `ok`; `timeout`; `fallback` = gagal dengan error yang boleh fallback dan provider berikutnya dicoba; `error` = gagal tanpa provider lain untuk dicoba.
+  - Definisi `timeout` ada di satu tempat (`isTimeoutError`, `src/lib/llm/log.ts`): `APIConnectionTimeoutError` dari OpenAI SDK, atau `fetch` yang dibatalkan `AbortSignal.timeout()` (`DOMException` `TimeoutError`, saat menunggu header maupun body). Kegagalan koneksi lain (ditolak, DNS) bukan timeout: dicatat `fallback` atau `error`.
+  - **Batas cakupan:** hanya percobaan yang benar-benar memanggil provider. Yang **tidak** dicatat: env Live/TTS belum diisi, slot Live penuh (`claim_live_slot`, pelajar langsung ke mode Fallback), dan tidak ada balasan baru untuk TTS (`claim_tts`). Pemantauan kondisi tersebut di luar US-A-04 versi ini.
+  - **Retensi:** baris dengan `session_id` ikut terhapus bersama sesinya. Baris tanpa sesi (task `generator`) belum punya aturan retensi; aturannya diputuskan bersama job retensi (#15) sebelum pilot berjangka panjang.
   - Penulisan log ditunggu paling lama 2 dtk dan kegagalannya ditelan: log tidak boleh memutus atau mengubah panggilan yang dicatatnya.
 
 ## 5. Avatar & lip-sync
