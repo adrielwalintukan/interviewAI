@@ -6,7 +6,7 @@ import { extractJson } from "@/lib/llm/extract-json";
 import { complete } from "@/lib/llm/gateway";
 import { GRADER_PROMPT_VERSION, buildGraderMessages } from "@/lib/llm/prompts/grader";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { computeScore, normalizeGrade, type GradeResult, type Turn } from "./result";
+import { applyOverride, computeScore, normalizeGrade, type GradeResult, type Override, type Turn } from "./result";
 
 const ATTEMPTS = 3; // first try + 2 retries (docs/workflow.md §4); provider fallback happens inside the gateway
 const BACKOFF_MS = [0, 2_000, 6_000];
@@ -49,25 +49,39 @@ export async function runGrader(content: ScenarioContent, transcript: Turn[]): P
  * Callers MUST have checked that the user may end/view this session; everything here runs as service role.
  */
 export async function gradeSession(sessionId: string): Promise<void> {
-  const db = createAdminClient();
-  const { data: claimed } = await db.rpc("claim_grading", { p_session_id: sessionId });
-  if (!claimed) return;
+  if (await claimGrading(sessionId)) await gradeClaimed(sessionId);
+}
 
+/** Moves the session to 'grading' (see claim_grading). Lets a caller show "diproses" before the run starts. */
+export async function claimGrading(sessionId: string): Promise<boolean> {
+  const { data } = await createAdminClient().rpc("claim_grading", { p_session_id: sessionId });
+  return data === true;
+}
+
+/** Grades a session this caller has just claimed; always ends in 'graded' or 'grading_failed'. */
+export async function gradeClaimed(sessionId: string): Promise<void> {
+  const db = createAdminClient();
   let run: GraderRun | null = null;
+  let finalScore = 0;
   try {
-    const [{ data: session }, { data: rows }] = await Promise.all([
+    const [{ data: session }, { data: rows }, { data: previous }] = await Promise.all([
       db.from("sessions").select("scenario_version_id").eq("id", sessionId).single(),
       db.from("messages").select("seq, speaker, text").eq("session_id", sessionId).order("seq"),
+      db.from("evaluations").select("override").eq("session_id", sessionId).maybeSingle(),
     ]);
     const scenario = session && (await loadScenarioContent(session.scenario_version_id as string));
     if (scenario) run = await runGrader(scenario.content, (rows ?? []) as Turn[]);
+    // A teacher's per-criterion override survives a re-grade; the final score is recomputed from the new facts.
+    const override = (previous?.override ?? null) as Override | null;
+    if (run && scenario) finalScore = override ? computeScore({ facts: run.result.facts, criteria: applyOverride(run.result, override) }, scenario.content) : run.score;
   } catch {
-    // run stays null: marked failed below so a teacher can re-run it (docs/workflow.md §4)
+    run = null; // marked failed below so a teacher can re-run it (docs/workflow.md §4)
   }
   await db.rpc("finish_grading", {
     p_session_id: sessionId,
     p_result: run?.result ?? null,
     p_score: run?.score ?? 0,
+    p_final_score: finalScore,
     p_model: run?.model ?? "",
     p_prompt_version: GRADER_PROMPT_VERSION,
   });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeScore, normalizeGrade, revealMissed, triggerQuestion, type Turn } from "./result";
+import { applyOverride, computeScore, normalizeGrade, revealMissed, triggerQuestion, type Turn } from "./result";
 
 const descriptors = { 1: "a", 2: "b", 3: "c", 4: "d" };
 const scenario = {
@@ -116,5 +116,30 @@ describe("revealMissed", () => {
     expect(revealMissed("assignment", true)).toBe(true);
     expect(revealMissed("library", false)).toBe(true);
     expect(revealMissed("preview", false)).toBe(true);
+  });
+});
+
+describe("applyOverride", () => {
+  const criteria = [
+    { criterion: "Pembukaan", level: 2 as const, rationale: "" },
+    { criterion: "Teknik bertanya", level: 4 as const, rationale: "" },
+  ];
+
+  it("replaces only the overridden levels and keeps the AI level for display", () => {
+    const out = applyOverride({ criteria }, { criteria: { Pembukaan: 4 } });
+    expect(out.map((c) => [c.level, c.ai])).toEqual([
+      [4, 2],
+      [4, 4],
+    ]);
+  });
+
+  it("recomputes the final score from the teacher's levels", () => {
+    // coverage 3/4 (F1 found); rubric (4/4·1 + 4/4·3)/4 = 1 → 100·(0.45 + 0.4) = 85
+    const facts = [
+      { factId: "F1", found: true, evidenceSeq: [3] },
+      { factId: "F2", found: false, evidenceSeq: [] },
+    ];
+    expect(computeScore({ facts, criteria: applyOverride({ criteria }, { criteria: { Pembukaan: 4 } }) }, scenario)).toBe(85);
+    expect(computeScore({ facts, criteria: applyOverride({ criteria }, null) }, scenario)).toBe(80);
   });
 });

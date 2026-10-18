@@ -193,7 +193,7 @@ erDiagram
 | `assignments` | `id`, `class_id`, `scenario_version_id`, `due_at`, `duration_min` (15), `max_attempts` (3) |
 | `sessions` | `id`, `user_id`, `kind` (`assignment`/`library`/`preview`), `assignment_id` (null bila pustaka/preview atau tugas dihapus), `scenario_version_id`, `mode` (`live`/`fallback`), `status` (`active`/`ended`/`grading`/`graded`/`grading_failed`), `prompt_version`, `started_at`, `ends_at` (otoritatif server), `ended_at`. Ditulis hanya lewat RPC |
 | `messages` | PK `(session_id, seq)`, `speaker` (`learner`/`character`), `text` (≤ 2000), `created_at`, `spoken_at` (jawaban karakter sudah dibacakan TTS mode hemat). Ditulis hanya lewat `append_message()` / `claim_tts()` |
-| `evaluations` | `session_id`, `ai_result` (jsonb), `ai_score`, `final_score`, `override` (jsonb), `reviewer_id`, `comment`, `grader_model`, `prompt_version` |
+| `evaluations` | `session_id`, `ai_result` (jsonb), `ai_score`, `final_score`, `override` (jsonb), `reviewer_id`, `comment`, `reviewed_at`, `review_seen_at`, `grader_model`, `prompt_version` |
 | `llm_calls` | `id`, `task`, `provider`, `model`, `latency_ms`, `status`, `tokens_in/out`, `session_id?` |
 | `audit_log` | `actor_id`, `action`, `target`, `created_at` |
 
@@ -224,7 +224,8 @@ Nilai terbaik per tugas tidak disimpan sebagai kolom. Nilai ini dihitung lewat v
 | Tabel | Pelajar | Pengajar | Admin |
 |---|---|---|---|
 | `sessions`, `messages` | baris miliknya | sesi pada kelas miliknya + preview miliknya | semua |
-| `evaluations` | baca miliknya (`ai_result` hanya berisi id fakta, bukan isi fakta) | baca di kelasnya (update override: US-G-07) | semua |
+| `evaluations` | baca miliknya (`ai_result` hanya berisi id fakta, bukan isi fakta) | baca di kelasnya; override lewat `reviewEvaluation` → RPC `review_evaluation` | semua |
+| `assignment_scores` (view, `security_invoker`) | baris miliknya | kelas miliknya | semua |
 | `scenarios` (draf) | **tidak ada akses** | skenario buatannya | semua |
 | `scenario_version_secrets` | **tidak ada akses** | skenario buatannya | semua |
 | `scenario_versions` (brief) | versi yang ditugaskan ke kelasnya + versi publik terkini | buatannya + yang ditugaskan + publik terkini | semua |
@@ -245,11 +246,15 @@ Mutasi memakai **Server Actions** (tidak ada folder `app/api`). Setiap action me
 | `chatTurn` | `features/interview/actions.ts` | Jawaban persona mode hemat | pemilik sesi |
 | `speakLastReply` | `features/interview/voice.ts` | Suara karakter mode hemat (Gemini TTS, sekali per jawaban via `claim_tts`) | pemilik sesi |
 | `endSession` | `features/interview/actions.ts` | Akhiri sesi, lalu jadwalkan `gradeSession` dengan `after()` (tidak menahan redirect; `maxDuration` 300 dtk di halaman) | pemilik sesi |
+| `reviewEvaluation` | `features/grading/actions.ts` | Override level per kriteria + komentar; nilai final dihitung ulang di server (`applyOverride` + `computeScore`) | pengajar pemilik kelas / admin |
+| `regradeSession` | `features/grading/actions.ts` | Nilai ulang sesi `grading_failed` (klaim dulu, LLM jalan lewat `after()`) | pengajar pemilik kelas / admin; pemilik sesi untuk Pustaka & preview |
 | `generateDraft`, `saveDraft`, `publishScenario`, `setScenarioPublic` | `features/scenario/actions.ts` | Generator & editor skenario | pengajar (penulis) |
 | `createClass`, `joinClass`, `bulkCreateStudents`, `createAssignment`, … | `features/classroom/actions.ts` | Kelas, anggota, tugas | sesuai peran |
 | `resetPassword`, `updateUserAccess` | `features/auth`, `features/admin` | Reset password, akses pengguna | admin/pengajar kelas |
 
-**Penilaian (M4, `features/grading/`).** `gradeSession` berjalan sebagai service role setelah kepemilikan dicek: `claim_grading` → baca transkrip + rahasia skenario → `runGrader` (prompt `grader@1`, gateway task `grader`, `extractJson`, validasi Zod + validator bukti, hingga 3 percobaan dengan backoff 0/2/6 dtk, umpan balik saat JSON tidak valid) → `finish_grading`. Nilai dihitung di kode (`computeScore`). Halaman `/sesi/[id]/selesai` juga memicu `gradeSession` (lewat `after()`) bila pemiliknya membuka sesi yang sudah berakhir tapi belum dinilai, mis. sesi yang ditutup timer, lalu memuat ulang sendiri tiap 5 dtk selama diproses. Override nilai menyusul (US-G-07).
+**Penilaian (M4, `features/grading/`).** `gradeSession` berjalan sebagai service role setelah kepemilikan dicek: `claim_grading` → baca transkrip + rahasia skenario → `runGrader` (prompt `grader@1`, gateway task `grader`, `extractJson`, validasi Zod + validator bukti, hingga 3 percobaan dengan backoff 0/2/6 dtk, umpan balik saat JSON tidak valid) → `finish_grading`. Nilai dihitung di kode (`computeScore`). Halaman `/sesi/[id]/selesai` juga memicu `gradeSession` (lewat `after()`) bila pemiliknya membuka sesi yang sudah berakhir tapi belum dinilai, mis. sesi yang ditutup timer, lalu memuat ulang sendiri tiap 5 dtk selama diproses. Pengajar meninjau dari tombol **Hasil** per tugas di halaman kelas → `/kelas/[id]/tugas/[tugasId]` (dashboard tugas, US-G-08) → halaman ringkasan sesi (bagian "Tinjau nilai").
+
+**Dashboard tugas (US-G-08, `features/grading/class-dashboard.ts`).** Halaman `/kelas/[id]/tugas/[tugasId]` hanya untuk pengajar pemilik kelas dan admin. Isinya: tabel pelajar (status belum mulai / berjalan / selesai / dinilai, percobaan dan nilai terbaik dari `assignment_scores`, tautan ke percobaan dengan nilai terbaik), sebaran nilai terbaik per rentang 10, 5 fakta yang paling sering terlewat, dan semua percobaan. Agregasi dilakukan di Server Component: `ai_result` (hanya id fakta) dibaca lewat RLS, daftar fakta lewat `loadScenarioContent` setelah cek akses. Sebuah fakta dihitung terlewat oleh pelajar bila tidak ditemukan di percobaan bernilai mana pun miliknya. **Isi fakta hanya dirender untuk penulis skenario**; pengajar lain (skenario Pustaka) dan admin hanya melihat kategorinya. Notifikasi ke pelajar (US-G-07) bersifat in-app: dashboard pelajar menampilkan "Nilai baru dari pengajar" untuk evaluasi dengan `reviewed_at` terisi dan `review_seen_at` kosong; membuka ringkasan sesi memanggil `mark_review_seen`.
 
 ### 8b. RPC penilaian (M4)
 
@@ -258,7 +263,11 @@ Hanya `service_role` yang bisa memanggil; browser tidak pernah bisa menandai ses
 | RPC | Aturan |
 |---|---|
 | `claim_grading(session_id)` | Ubah status ke `grading` bila: `ended`, `grading_failed`, `active` yang lewat `ends_at` + 1 mnt, atau `grading` yang macet > 10 mnt setelah selesai. Syarat: ada minimal satu giliran pelajar (sesi tanpa pertanyaan tetap `ended`, tidak dinilai). `false` bila tidak ada yang perlu dinilai, sehingga pemanggilan ganda aman |
-| `finish_grading(session_id, result, score, model, prompt_version)` | Hanya untuk sesi berstatus `grading`. `result` null → `grading_failed`; selain itu simpan `evaluations` (`final_score` = `ai_score` selama belum di-override) dan status `graded` |
+| `review_evaluation(session_id, reviewer, override, final_score, comment)` | Mengecek ulang `reviewer` = pengajar aktif pemilik kelas tugas itu atau admin aktif, sesi `graded` (gagal → `not_allowed`); memvalidasi sendiri `override` = tepat satu level bulat 1–4 untuk setiap kriteria rubrik versi skenario itu dan `final_score` 0–100 (gagal → `bad_override`); simpan `override` (`{ criteria: { [kriteria]: level } }`), `final_score`, `reviewer_id`, `comment` (kosong → null), `reviewed_at` = now, `review_seen_at` = null |
+| `finish_grading(session_id, result, score, final_score, model, prompt_version)` | Hanya untuk sesi berstatus `grading`. `result` null → `grading_failed`; selain itu simpan `evaluations` dan status `graded`. `final_score` dihitung server: = `score` tanpa override, atau dihitung ulang dari hasil AI baru + override yang tersimpan |
+| `mark_review_seen(session_id)` | Dipanggil pemilik sesi (authenticated) saat membuka ringkasan; set `review_seen_at` hanya bila `auth.uid()` = pemilik sesi dan sesi sudah ditinjau |
+
+View `assignment_scores(assignment_id, user_id, attempts, best_score)`: jumlah percobaan dan **nilai final terbaik** per pelajar per tugas (PRD §5). Satu-satunya sumber nilai tugas untuk dashboard kelas (US-G-08) dan ekspor CSV (US-G-09).
 
 ### 8a. RPC sesi (M3)
 
