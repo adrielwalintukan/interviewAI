@@ -12,7 +12,9 @@ export type ReviewCriterion = { criterion: string; level: number; ai: number };
 export function ReviewForm({ sessionId, criteria, comment }: { sessionId: string; criteria: ReviewCriterion[]; comment: string | null }) {
   const [state, action] = useActionState<ReviewState, FormData>(reviewEvaluation, {});
   return (
-    <form action={action} className="flex flex-col gap-5">
+    // Keyed on the saved values: React resets a form after its action and <select defaultValue> ignores later
+    // prop changes, so remount the fields (the action state above, and its "tersimpan" notice, survive).
+    <form key={`${criteria.map((c) => c.level).join("")}|${comment ?? ""}`} action={action} className="flex flex-col gap-5">
       <input type="hidden" name="sessionId" value={sessionId} />
       {criteria.map((c, i) => (
         <div key={c.criterion} className="flex flex-col gap-1.5">
