@@ -2,8 +2,9 @@ import "server-only";
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { llmEnv } from "@/lib/env";
+import { logLlmCall, type LogCall } from "./log";
 
-export type LlmTask = "chat" | "grader";
+export type LlmTask = "chat" | "grader" | "generator";
 
 export type Provider = {
   name: "9router" | "gemini";
@@ -16,6 +17,8 @@ export type CompleteInput = {
   messages: ChatCompletionMessageParam[];
   json?: boolean;
   temperature?: number;
+  /** Links the llm_calls rows to a session (deleted with it). */
+  sessionId?: string;
 };
 
 export type CompleteResult = {
@@ -28,7 +31,7 @@ export type CompleteResult = {
   attempts: { provider: Provider["name"]; error?: string }[];
 };
 
-const TIMEOUT_MS: Record<LlmTask, number> = { chat: 15_000, grader: 60_000 };
+const TIMEOUT_MS: Record<LlmTask, number> = { chat: 15_000, grader: 60_000, generator: 60_000 };
 
 // ADR-003: fall back only on errors another provider could fix (rate limit, outage, network/timeout).
 export function isFallbackError(err: unknown): boolean {
@@ -40,12 +43,20 @@ export function isFallbackError(err: unknown): boolean {
   return false;
 }
 
-export function createGateway(providers: Provider[]) {
+export function createGateway(providers: Provider[], logCall: LogCall = logLlmCall) {
+  // A logging failure must never fail or change the LLM call it describes.
+  const log: LogCall = async (c) => {
+    try {
+      await logCall(c);
+    } catch {
+      // monitoring only
+    }
+  };
   return async function complete(input: CompleteInput): Promise<CompleteResult> {
     const attempts: CompleteResult["attempts"] = [];
     let lastError: unknown;
 
-    for (const p of providers) {
+    for (const [i, p] of providers.entries()) {
       const model = p.models[input.task];
       const started = Date.now();
       try {
@@ -61,7 +72,7 @@ export function createGateway(providers: Provider[]) {
           { timeout: TIMEOUT_MS[input.task], maxRetries: 0 },
         );
         attempts.push({ provider: p.name });
-        return {
+        const result = {
           text: res.choices[0]?.message?.content ?? "",
           provider: p.name,
           model,
@@ -70,10 +81,15 @@ export function createGateway(providers: Provider[]) {
           tokensOut: res.usage?.completion_tokens,
           attempts,
         };
+        await log({ task: input.task, provider: p.name, model, latencyMs: result.latencyMs, status: "ok", tokensIn: result.tokensIn, tokensOut: result.tokensOut, sessionId: input.sessionId });
+        return result;
       } catch (err) {
         attempts.push({ provider: p.name, error: err instanceof Error ? err.message : String(err) });
         lastError = err;
-        if (!isFallbackError(err)) break;
+        const fallsBack = isFallbackError(err) && i < providers.length - 1;
+        const status = err instanceof OpenAI.APIConnectionTimeoutError ? "timeout" : fallsBack ? "fallback" : "error";
+        await log({ task: input.task, provider: p.name, model, latencyMs: Date.now() - started, status, sessionId: input.sessionId });
+        if (!fallsBack) break;
       }
     }
     throw lastError;
@@ -92,12 +108,12 @@ export function complete(input: CompleteInput): Promise<CompleteResult> {
       {
         name: "9router",
         client: new OpenAI({ baseURL: env.NINEROUTER_BASE_URL, apiKey: env.NINEROUTER_API_KEY }),
-        models: { chat: env.CHAT_MODEL, grader: env.GRADER_MODEL },
+        models: { chat: env.CHAT_MODEL, grader: env.GRADER_MODEL, generator: env.GRADER_MODEL },
       },
       {
         name: "gemini",
         client: new OpenAI({ baseURL: GEMINI_OPENAI_BASE_URL, apiKey: env.GEMINI_API_KEY }),
-        models: { chat: env.GEMINI_FALLBACK_MODEL, grader: env.GEMINI_FALLBACK_MODEL },
+        models: { chat: env.GEMINI_FALLBACK_MODEL, grader: env.GEMINI_FALLBACK_MODEL, generator: env.GEMINI_FALLBACK_MODEL },
       },
     ]);
   }
