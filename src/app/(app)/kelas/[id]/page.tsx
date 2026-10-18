@@ -3,58 +3,16 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { requireUser } from "@/features/auth/dal";
 import { deleteAssignment, regenerateJoinCode } from "@/features/classroom/actions";
-import { AssignmentForm, DueLabel, DueState, LocalTime, type VersionOption } from "@/features/classroom/assignments";
+import { AssignmentForm, DueLabel, DueState, type VersionOption } from "@/features/classroom/assignments";
 import { BulkStudentsForm, CopyCode } from "@/features/classroom/components";
 import { ResetPasswordButton } from "@/features/auth/reset-password-button";
-import { STATUS_LABEL, SessionHistory, type HistoryRow } from "@/features/interview/session-history";
+import { SessionHistory, type HistoryRow } from "@/features/interview/session-history";
 import { CharacterPortrait } from "@/features/scenario/character-portrait";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Kelas — Interview AI" };
 
 type Member = { user_id: string; joined_at: string; profiles: { display_name: string; username: string | null; role: string } | null };
-
-type ResultRow = {
-  id: string;
-  status: string;
-  started_at: string;
-  profiles: { display_name: string } | null;
-  evaluations: { final_score: number; reviewer_id: string | null } | null;
-  assignment: { v: { title: string } | null } | null;
-};
-
-/** Teacher view: every attempt in this class, newest first, linking to the review page (US-G-07). */
-function ClassResults({ rows }: { rows: ResultRow[] }) {
-  if (rows.length === 0) return <p className="border-l-2 border-rule pl-4 text-ink-2">Belum ada pelajar yang mengerjakan tugas.</p>;
-  return (
-    <ol className="divide-y divide-rule border-y border-rule">
-      {rows.map((r) => (
-        <li key={r.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3">
-          <div className="min-w-0 flex-1">
-            <p className="font-medium">{r.profiles?.display_name ?? "—"}</p>
-            <p className="flex flex-wrap gap-x-3 font-mono text-label uppercase text-ink-2">
-              <span className="normal-case">{r.assignment?.v?.title}</span>
-              <LocalTime iso={r.started_at} />
-            </p>
-          </div>
-          <p className="font-mono text-label uppercase text-ink-2">
-            {r.evaluations ? (
-              <>
-                <span className="font-display text-2xl tabular-nums text-ink">{r.evaluations.final_score}</span>
-                {r.evaluations.reviewer_id ? " · ditinjau" : " · AI"}
-              </>
-            ) : (
-              (STATUS_LABEL[r.status] ?? r.status)
-            )}
-          </p>
-          <Link href={`/sesi/${r.id}/selesai`} className="inline-flex min-h-11 shrink-0 items-center rounded-sm border border-rule px-4 text-sm hover:border-ink">
-            Tinjau<span className="sr-only"> wawancara {r.profiles?.display_name}</span>
-          </Link>
-        </li>
-      ))}
-    </ol>
-  );
-}
 
 type AssignmentRow = {
   id: string;
@@ -73,7 +31,7 @@ type AssignmentRow = {
 };
 
 /** `asTeacher`: teacher wording, no Mulai. `canEdit`: the class owner (admin only reads; the actions are pengajar-only). */
-/** A failed query must not read as "nothing here yet"; same wording as the Hasil wawancara error. */
+/** A failed query must not read as "nothing here yet". */
 function LoadError({ what }: { what: string }) {
   return (
     <p role="alert" className="border-l-2 border-accent pl-4 text-accent">
@@ -116,6 +74,11 @@ function AssignmentList({ rows, classId, asTeacher, canEdit }: { rows: Assignmen
             </p>
           </div>
           <div className="flex shrink-0 flex-col items-end gap-2">
+            {asTeacher && (
+              <Link href={`/kelas/${classId}/tugas/${a.id}`} className="inline-flex min-h-11 items-center rounded-sm border border-rule px-4 text-sm hover:border-ink">
+                Hasil<span className="sr-only"> tugas {a.v?.title}</span>
+              </Link>
+            )}
             {canEdit ? (
               <form action={deleteAssignment}>
                 <input type="hidden" name="id" value={a.id} />
@@ -220,16 +183,6 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
     .filter((v) => !ownIds.has(v.id))
     .map((v) => ({ id: v.id, label: `${v.title} — ${v.client_name} (v${v.version})` }));
 
-  // RLS: the class owner (or an admin) reads its sessions, evaluations and members' profiles.
-  // shortcut: newest 100 attempts only; the class dashboard (US-G-08, #13) replaces this list with per-assignment views.
-  const { data: results, error: resultsError } = await supabase
-    .from("sessions")
-    .select("id, status, started_at, profiles(display_name), evaluations(final_score, reviewer_id), assignment:assignments!inner(class_id, v:scenario_versions(title))")
-    .eq("assignment.class_id", id)
-    .order("started_at", { ascending: false })
-    .limit(100)
-    .returns<ResultRow[]>();
-
   const { data: members, error: membersError } = await supabase
     .from("class_members")
     .select("user_id, joined_at, profiles!inner(display_name, username, role)")
@@ -259,18 +212,6 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
           </section>
         )}
       </div>
-      <section className="mt-16 border-t border-rule pt-10 lg:max-w-4xl">
-        <p className="font-mono text-label uppercase text-accent">Hasil wawancara</p>
-        <div className="mt-4">
-          {resultsError ? (
-            <p role="alert" className="border-l-2 border-accent pl-4 text-accent">
-              Hasil wawancara gagal dimuat. Muat ulang halaman ini; bila masih gagal, hubungi admin.
-            </p>
-          ) : (
-            <ClassResults rows={results ?? []} />
-          )}
-        </div>
-      </section>
       <div className="mt-16 grid gap-12 border-t border-rule pt-10 lg:grid-cols-12">
         <section className="lg:col-span-5">
           {isOwner && (
