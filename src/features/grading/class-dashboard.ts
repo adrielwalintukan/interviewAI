@@ -29,6 +29,14 @@ export function scoreHistogram(scores: number[]): number[] {
   return bins;
 }
 
+/**
+ * Fact content is shown to the scenario's author acting as a teacher only. Admins and teachers using
+ * someone else's library scenario get categories (docs/security-privacy.md §4), even an admin who once wrote it.
+ */
+export function canSeeFactContent(user: { id: string; role: string }, authorId: string | null | undefined): boolean {
+  return user.role === "pengajar" && authorId === user.id;
+}
+
 export type MissedFact = { factId: string; category: Fact["category"]; content: string | null; missed: number; of: number };
 
 /**

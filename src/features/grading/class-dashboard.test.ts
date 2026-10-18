@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { learnerStatus, missedFacts, scoreHistogram } from "./class-dashboard";
+import { canSeeFactContent, learnerStatus, missedFacts, scoreHistogram } from "./class-dashboard";
 
 describe("learnerStatus", () => {
   it("covers 0, 1 and several attempts", () => {
@@ -40,5 +40,15 @@ describe("missedFacts", () => {
     expect(out).toHaveLength(3);
     expect(out.every((f) => f.content === null)).toBe(true);
     expect(JSON.stringify(out)).not.toContain("Kurir");
+  });
+});
+
+describe("canSeeFactContent", () => {
+  it("is true only for the author acting as a teacher", () => {
+    expect(canSeeFactContent({ id: "u1", role: "pengajar" }, "u1")).toBe(true);
+    expect(canSeeFactContent({ id: "u1", role: "pengajar" }, "u2")).toBe(false);
+    expect(canSeeFactContent({ id: "u1", role: "pengajar" }, null)).toBe(false);
+    expect(canSeeFactContent({ id: "u1", role: "admin" }, "u1")).toBe(false);
+    expect(canSeeFactContent({ id: "u1", role: "admin" }, "u2")).toBe(false);
   });
 });

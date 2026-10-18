@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { requireUser } from "@/features/auth/dal";
 import { DueLabel, DueState, LocalTime } from "@/features/classroom/assignments";
-import { LEARNER_STATUS_LABEL, learnerStatus, missedFacts, scoreHistogram } from "@/features/grading/class-dashboard";
+import { LEARNER_STATUS_LABEL, canSeeFactContent, learnerStatus, missedFacts, scoreHistogram } from "@/features/grading/class-dashboard";
 import type { GradeResult } from "@/features/grading/result";
 import { loadScenarioContent } from "@/features/interview/context";
 import { STATUS_LABEL } from "@/features/interview/session-history";
@@ -65,7 +65,7 @@ async function AssignmentResults({ params }: { params: PageProps<"/kelas/[id]/tu
       .order("started_at", { ascending: false })
       .returns<SessionRow[]>(),
     supabase.from("assignment_scores").select("user_id, attempts, best_score").eq("assignment_id", tugasId),
-    // Access checked above. Fact content is dropped by missedFacts() unless the caller wrote the scenario.
+    // Access checked above. Fact content is dropped by missedFacts() unless canSeeFactContent().
     loadScenarioContent(a.scenario_version_id),
   ]);
   const failed = membersError || sessionsError || scoresError || !scenario;
@@ -92,8 +92,7 @@ async function AssignmentResults({ params }: { params: PageProps<"/kelas/[id]/tu
   const bestScores = learners.flatMap((l) => (l.best === null ? [] : [l.best]));
   const bins = scoreHistogram(bestScores);
   const maxBin = Math.max(1, ...bins);
-  const isAuthor = a.v?.scenarios?.author_id === user.id;
-  const missed = scenario ? missedFacts(learners.map((l) => l.graded), scenario.content.facts, isAuthor).slice(0, 5) : [];
+  const missed = scenario ? missedFacts(learners.map((l) => l.graded), scenario.content.facts, canSeeFactContent(user, a.v?.scenarios?.author_id)).slice(0, 5) : [];
   const done = learners.filter((l) => l.status === "dinilai").length;
 
   return (
