@@ -232,8 +232,10 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
 
   const { data: members, error: membersError } = await supabase
     .from("class_members")
-    .select("user_id, joined_at, profiles(display_name, username, role)")
+    .select("user_id, joined_at, profiles!inner(display_name, username, role)")
     .eq("class_id", id)
+    // A member whose role an admin changed (US-A-01) keeps the class_members row; this list counts learners only.
+    .eq("profiles.role", "pelajar")
     .order("joined_at", { ascending: true })
     .returns<Member[]>();
 
