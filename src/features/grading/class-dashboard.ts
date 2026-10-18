@@ -1,4 +1,5 @@
 import type { ScenarioContent } from "@/features/scenario/schema";
+import { csvCell } from "@/features/classroom/csv-cell";
 import type { GradeResult } from "./result";
 
 type Fact = ScenarioContent["facts"][number];
@@ -60,4 +61,19 @@ export function missedFacts(
     }))
     .filter((f) => f.missed > 0)
     .sort((a, b) => b.missed - a.missed);
+}
+
+/**
+ * US-G-09: one row per learner of the class, including those who never started (empty score). Every cell
+ * goes through csvCell (formula injection, docs/security-privacy.md). BOM so Excel reads UTF-8 names.
+ */
+export function scoresCsv(rows: { name: string; username: string | null; attempts: number; best: number | null; status: LearnerStatus }[]): string {
+  const lines = rows.map((r) => [r.name, r.username ?? "", String(r.attempts), r.best === null ? "" : String(r.best), LEARNER_STATUS_LABEL[r.status]].map(csvCell).join(","));
+  return "﻿" + ["nama,username,percobaan,nilai_final_terbaik,status", ...lines].join("\r\n") + "\r\n";
+}
+
+/** `nilai-<judul>-<YYYY-MM-DD>.csv`, ASCII only so every browser keeps the name. */
+export function scoresFileName(title: string, date: Date): string {
+  const slug = title.normalize("NFKD").replace(/[^\w\s-]/g, "").trim().toLowerCase().replace(/[\s_-]+/g, "-").slice(0, 60) || "tugas";
+  return `nilai-${slug}-${date.toISOString().slice(0, 10)}.csv`;
 }

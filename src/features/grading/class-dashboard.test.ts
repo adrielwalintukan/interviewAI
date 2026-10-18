@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canSeeFactContent, learnerStatus, missedFacts, scoreHistogram } from "./class-dashboard";
+import { canSeeFactContent, learnerStatus, missedFacts, scoreHistogram, scoresCsv, scoresFileName } from "./class-dashboard";
 
 describe("learnerStatus", () => {
   it("covers 0, 1 and several attempts", () => {
@@ -50,5 +50,30 @@ describe("canSeeFactContent", () => {
     expect(canSeeFactContent({ id: "u1", role: "pengajar" }, null)).toBe(false);
     expect(canSeeFactContent({ id: "u1", role: "admin" }, "u1")).toBe(false);
     expect(canSeeFactContent({ id: "u1", role: "admin" }, "u2")).toBe(false);
+  });
+});
+
+describe("scoresCsv", () => {
+  it("lists every learner, leaves the score empty when not started, and neutralises formulas", () => {
+    const csv = scoresCsv([
+      { name: "Budi, S.", username: "budi", attempts: 2, best: 87, status: "dinilai" },
+      { name: "=HYPERLINK(\"x\")", username: null, attempts: 0, best: null, status: "belum" },
+      { name: "@ani", username: "-ani", attempts: 1, best: null, status: "selesai" },
+    ]);
+    expect(csv.startsWith("﻿nama,username,percobaan,nilai_final_terbaik,status\r\n")).toBe(true);
+    const rows = csv.slice(1).trimEnd().split("\r\n");
+    expect(rows).toEqual([
+      "nama,username,percobaan,nilai_final_terbaik,status",
+      "\"Budi, S.\",budi,2,87,Dinilai",
+      "\"'=HYPERLINK(\"\"x\"\")\",,0,,Belum mulai",
+      "'@ani,'-ani,1,,\"Selesai, belum dinilai\"",
+    ]);
+  });
+});
+
+describe("scoresFileName", () => {
+  it("slugs the title and appends the date", () => {
+    expect(scoresFileName("Elisitasi Kebutuhan: Laundry & Kurir", new Date("2026-10-18T05:00:00Z"))).toBe("nilai-elisitasi-kebutuhan-laundry-kurir-2026-10-18.csv");
+    expect(scoresFileName("???", new Date("2026-10-18T05:00:00Z"))).toBe("nilai-tugas-2026-10-18.csv");
   });
 });
