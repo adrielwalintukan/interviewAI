@@ -59,6 +59,39 @@ async function ClassList({ user }: { user: CurrentUser }) {
   );
 }
 
+type ReviewNotice = { session_id: string; final_score: number; s: { v: { title: string } | null } | null };
+
+/** US-G-07: a teacher reviewed one of the learner's grades and they haven't opened that report since. */
+async function ReviewNotices({ user }: { user: CurrentUser }) {
+  const supabase = await createClient();
+  // RLS: own evaluations; review_seen_at is cleared on every review and set when the learner opens the report.
+  const { data } = await supabase
+    .from("evaluations")
+    .select("session_id, final_score, s:sessions!inner(user_id, v:scenario_versions(title))")
+    .eq("s.user_id", user.id)
+    .not("reviewed_at", "is", null)
+    .is("review_seen_at", null)
+    .order("reviewed_at", { ascending: false })
+    .returns<ReviewNotice[]>();
+  if (!data?.length) return null;
+  return (
+    <section aria-labelledby="nilai-baru-h" className="mb-10 border-l-2 border-accent pl-4">
+      <h2 id="nilai-baru-h" className="font-mono text-label uppercase text-accent">
+        Nilai baru dari pengajar
+      </h2>
+      <ul className="mt-2 space-y-1">
+        {data.map((n) => (
+          <li key={n.session_id}>
+            <Link href={`/sesi/${n.session_id}/selesai`} className="inline-flex min-h-11 items-center gap-2 underline decoration-accent underline-offset-4 hover:text-accent">
+              {n.s?.v?.title} — nilai final <span className="tabular-nums">{n.final_score}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 async function Dashboard() {
   const user = await requireUser({ allowPending: true });
 
@@ -82,6 +115,7 @@ async function Dashboard() {
         <p className="font-mono text-label uppercase text-accent">01 — {isAdmin ? "Semua kelas" : isTeacher ? "Kelas Anda" : "Kelasmu"}</p>
         <h1 className="mt-3 font-display text-display font-medium tracking-tight">Halo, {user.displayName}.</h1>
         <div className="mt-8">
+          {user.role === "pelajar" && <ReviewNotices user={user} />}
           <ClassList user={user} />
         </div>
       </section>
