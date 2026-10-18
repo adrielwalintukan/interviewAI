@@ -72,11 +72,16 @@ type AssignmentRow = {
   } | null;
 };
 
-function AssignmentList({ rows, classId, isOwner }: { rows: AssignmentRow[]; classId: string; isOwner: boolean }) {
+/** `asTeacher`: teacher wording, no Mulai. `canEdit`: the class owner (admin only reads; the actions are pengajar-only). */
+function AssignmentList({ rows, classId, asTeacher, canEdit }: { rows: AssignmentRow[]; classId: string; asTeacher: boolean; canEdit: boolean }) {
   if (rows.length === 0) {
     return (
       <p className="border-l-2 border-rule pl-4 text-ink-2">
-        {isOwner ? "Belum ada tugas. Berikan skenario lewat form Beri tugas." : "Belum ada tugas wawancara. Pengajarmu akan memberikannya di sini."}
+        {canEdit
+          ? "Belum ada tugas. Berikan skenario lewat form Beri tugas."
+          : asTeacher
+            ? "Belum ada tugas."
+            : "Belum ada tugas wawancara. Pengajarmu akan memberikannya di sini."}
       </p>
     );
   }
@@ -88,11 +93,11 @@ function AssignmentList({ rows, classId, isOwner }: { rows: AssignmentRow[]; cla
           <div className="min-w-0 flex-1">
             <p className="font-display text-xl leading-tight">
               {a.v?.title}
-              {isOwner && <span className="ml-2 font-mono text-label uppercase text-ink-2">v{a.v?.version}</span>}
+              {asTeacher && <span className="ml-2 font-mono text-label uppercase text-ink-2">v{a.v?.version}</span>}
             </p>
             <p className="mt-1 text-sm text-ink-2">
               Wawancarai <span className="text-ink">{a.v?.client_name}</span>, {a.v?.client_occupation}.{" "}
-              {isOwner ? "Peran pelajar" : "Peranmu"}: {a.v?.learner_role}.
+              {asTeacher ? "Peran pelajar" : "Peranmu"}: {a.v?.learner_role}.
             </p>
             <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-label uppercase text-ink-2">
               <DueLabel iso={a.due_at} />
@@ -102,7 +107,7 @@ function AssignmentList({ rows, classId, isOwner }: { rows: AssignmentRow[]; cla
             </p>
           </div>
           <div className="flex shrink-0 flex-col items-end gap-2">
-            {isOwner ? (
+            {canEdit ? (
               <form action={deleteAssignment}>
                 <input type="hidden" name="id" value={a.id} />
                 <input type="hidden" name="classId" value={classId} />
@@ -110,7 +115,7 @@ function AssignmentList({ rows, classId, isOwner }: { rows: AssignmentRow[]; cla
                   Hapus<span className="sr-only"> tugas {a.v?.title}</span>
                 </button>
               </form>
-            ) : (
+            ) : asTeacher ? null : (
               <Link href={`/sesi/mulai?tugas=${a.id}`} className="inline-flex min-h-11 items-center rounded-sm bg-accent px-4 text-sm font-medium text-accent-ink hover:bg-ink hover:text-paper">
                 Mulai<span className="sr-only"> wawancara {a.v?.title}</span>
               </Link>
@@ -128,7 +133,7 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
 
   const supabase = await createClient();
-  // RLS returns nothing unless the caller owns or belongs to the class.
+  // RLS returns nothing unless the caller owns or belongs to the class, or is an admin.
   const { data: cls } = await supabase
     .from("classes")
     .select("id, name, join_code, owner_id, archived_at")
@@ -137,8 +142,10 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
   if (!cls) notFound();
 
   const isOwner = cls.owner_id === user.id;
+  // Admins read every class (RLS) but aren't members: they get the teacher view without the owner's actions.
+  const isAdmin = user.role === "admin" && !isOwner;
 
-  // RLS: owner and members of this class only.
+  // RLS: owner, members of this class, and admins.
   const { data: assignmentData } = await supabase
     .from("assignments")
     .select(
@@ -158,7 +165,7 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
     </>
   );
 
-  if (!isOwner) {
+  if (!isOwner && !isAdmin) {
     // RLS: own sessions only. Sessions of a deleted assignment lose their class link and drop out of this list.
     const { data: history } = await supabase
       .from("sessions")
@@ -173,7 +180,7 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
         <section className="mt-10 max-w-3xl">
           <p className="font-mono text-label uppercase text-accent">Tugas wawancara</p>
           <div className="mt-4">
-            <AssignmentList rows={assignments} classId={cls.id} isOwner={false} />
+            <AssignmentList rows={assignments} classId={cls.id} asTeacher={false} canEdit={false} />
           </div>
         </section>
         <section className="mt-12 max-w-3xl">
@@ -186,7 +193,8 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
     );
   }
 
-  const [{ data: ownScenarios }, { data: library }] = await Promise.all([
+  // Options for the Beri tugas form, which only the owner gets.
+  const [{ data: ownScenarios }, { data: library }] = !isOwner ? [{ data: null }, { data: null }] : await Promise.all([
     supabase
       .from("scenarios")
       .select("current:scenario_versions!scenarios_current_version_fk(id, version, title)")
@@ -203,7 +211,7 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
     .filter((v) => !ownIds.has(v.id))
     .map((v) => ({ id: v.id, label: `${v.title} — ${v.client_name} (v${v.version})` }));
 
-  // RLS: the class owner reads its sessions, evaluations and members' profiles.
+  // RLS: the class owner (or an admin) reads its sessions, evaluations and members' profiles.
   // shortcut: newest 100 attempts only; the class dashboard (US-G-08, #13) replaces this list with per-assignment views.
   const { data: results, error: resultsError } = await supabase
     .from("sessions")
@@ -223,19 +231,22 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
   return (
     <>
       {header}
+      {isAdmin && <p className="mt-3 text-ink-2">Tampilan admin, hanya baca. Kelas ini dikelola pengajarnya.</p>}
       <div className="mt-10 grid gap-12 lg:grid-cols-12">
         <section className="lg:col-span-7">
           <p className="font-mono text-label uppercase text-accent">01 — Tugas ({assignments.length})</p>
           <div className="mt-4">
-            <AssignmentList rows={assignments} classId={cls.id} isOwner />
+            <AssignmentList rows={assignments} classId={cls.id} asTeacher canEdit={isOwner} />
           </div>
         </section>
-        <section className="lg:col-span-5 lg:border-l lg:border-rule lg:pl-8">
-          <p className="font-mono text-label uppercase text-accent">02 — Beri tugas</p>
-          <div className="mt-4">
-            <AssignmentForm classId={cls.id} own={own} library={libraryOptions} />
-          </div>
-        </section>
+        {isOwner && (
+          <section className="lg:col-span-5 lg:border-l lg:border-rule lg:pl-8">
+            <p className="font-mono text-label uppercase text-accent">02 — Beri tugas</p>
+            <div className="mt-4">
+              <AssignmentForm classId={cls.id} own={own} library={libraryOptions} />
+            </div>
+          </section>
+        )}
       </div>
       <section className="mt-16 border-t border-rule pt-10 lg:max-w-4xl">
         <p className="font-mono text-label uppercase text-accent">Hasil wawancara</p>
@@ -251,22 +262,24 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
       </section>
       <div className="mt-16 grid gap-12 border-t border-rule pt-10 lg:grid-cols-12">
         <section className="lg:col-span-5">
-          <p className="font-mono text-label uppercase text-accent">03 — Kode gabung</p>
+          <p className="font-mono text-label uppercase text-accent">{isOwner ? "03" : "02"} — Kode gabung</p>
           <p className="mt-3 font-mono text-[clamp(2.5rem,8vw,4rem)] leading-none tracking-[0.18em]" aria-label={`Kode kelas ${cls.join_code.split("").join(" ")}`}>
             {cls.join_code}
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
             <CopyCode code={cls.join_code} />
-            <form action={regenerateJoinCode}>
-              <input type="hidden" name="classId" value={cls.id} />
-              <button type="submit" className="min-h-11 rounded-sm px-4 text-sm text-ink-2 underline-offset-4 hover:text-ink hover:underline">
-                Buat kode baru
-              </button>
-            </form>
+            {isOwner && (
+              <form action={regenerateJoinCode}>
+                <input type="hidden" name="classId" value={cls.id} />
+                <button type="submit" className="min-h-11 rounded-sm px-4 text-sm text-ink-2 underline-offset-4 hover:text-ink hover:underline">
+                  Buat kode baru
+                </button>
+              </form>
+            )}
           </div>
-          <p className="mt-3 text-sm text-ink-2">Kode lama langsung tidak berlaku setelah dibuat ulang.</p>
+          {isOwner && <p className="mt-3 text-sm text-ink-2">Kode lama langsung tidak berlaku setelah dibuat ulang.</p>}
 
-          <p className="mt-12 font-mono text-label uppercase text-accent">04 — Pelajar ({members?.length ?? 0})</p>
+          <p className="mt-12 font-mono text-label uppercase text-accent">{isOwner ? "04" : "03"} — Pelajar ({members?.length ?? 0})</p>
           {members && members.length > 0 ? (
             <ol className="mt-3 divide-y divide-rule border-y border-rule">
               {members.map((m, i) => (
@@ -283,20 +296,22 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
               ))}
             </ol>
           ) : (
-            <p className="mt-3 text-ink-2">Belum ada pelajar. Bagikan kode di atas atau buat akun massal.</p>
+            <p className="mt-3 text-ink-2">{isOwner ? "Belum ada pelajar. Bagikan kode di atas atau buat akun massal." : "Belum ada pelajar."}</p>
           )}
         </section>
 
-        <section className="lg:col-span-7 lg:border-l lg:border-rule lg:pl-8">
-          <p className="font-mono text-label uppercase text-accent">05 — Akun pelajar massal</p>
-          <p className="mt-3 text-ink-2">
-            Untuk pelajar tanpa email. Mereka masuk dengan <span className="font-mono text-ink">username</span> dan
-            password awal, lalu wajib menggantinya saat pertama masuk.
-          </p>
-          <div className="mt-6">
-            <BulkStudentsForm classId={cls.id} />
-          </div>
-        </section>
+        {isOwner && (
+          <section className="lg:col-span-7 lg:border-l lg:border-rule lg:pl-8">
+            <p className="font-mono text-label uppercase text-accent">05 — Akun pelajar massal</p>
+            <p className="mt-3 text-ink-2">
+              Untuk pelajar tanpa email. Mereka masuk dengan <span className="font-mono text-ink">username</span> dan
+              password awal, lalu wajib menggantinya saat pertama masuk.
+            </p>
+            <div className="mt-6">
+              <BulkStudentsForm classId={cls.id} />
+            </div>
+          </section>
+        )}
       </div>
     </>
   );
