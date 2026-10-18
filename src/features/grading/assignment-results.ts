@@ -22,7 +22,8 @@ export type SessionRow = {
 };
 type Member = { user_id: string; profiles: { display_name: string; username: string | null } | null };
 
-const UUID = /^[0-9a-f-]{36}$/i;
+// Canonical 8-4-4-4-12 shape (any version, as Postgres accepts): anything else must 404 before reaching the query.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * One assignment's results for its class owner or an admin (US-G-08, US-G-09); null when the caller may

@@ -87,7 +87,10 @@ describe("nilai-csv route", () => {
     db.tables.assignments = { data: null, error: null };
     expect((await get()).status).toBe(404);
     db.queried = [];
-    expect((await get("bukan-uuid")).status).toBe(404);
+    for (const bad of ["bukan-uuid", "-".repeat(36), "0".repeat(36), `${CLASS.slice(0, -1)}g`]) {
+      expect((await get(bad)).status).toBe(404);
+      expect((await get(CLASS, bad)).status).toBe(404);
+    }
     expect(db.queried).toEqual([]);
   });
 
