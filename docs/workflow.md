@@ -91,7 +91,7 @@ sequenceDiagram
   DB-->>P: notifikasi nilai final
 ```
 
-Kalau grading gagal (error provider atau JSON tidak valid), sistem mencoba ulang 2× dengan backoff; di setiap percobaan gateway sudah memakai provider fallback bila provider utama gagal. Sesi yang ditutup timer tanpa "Akhiri" dinilai saat pemiliknya membuka halaman ringkasan. Sesi tanpa satu pun pertanyaan pelajar tidak dinilai. Sesi Pustaka dan preview tidak punya pengajar, jadi pemilik sesinya sendiri yang bisa menekan "Nilai ulang" saat `grading_failed`. Override pengajar tetap dipertahankan bila sesi dinilai ulang. Kalau tetap gagal, status menjadi `grading_failed`, Pengajar bisa memicu penilaian ulang, dan pelajar melihat "Penilaian sedang diproses".
+Kalau grading gagal (error provider atau JSON tidak valid), sistem mencoba ulang 2× dengan backoff; di setiap percobaan gateway sudah memakai provider fallback bila provider utama gagal. Sesi yang ditutup timer tanpa "Akhiri" dinilai saat pemiliknya membuka halaman ringkasan. Sesi tanpa satu pun pertanyaan pelajar tidak dinilai. Sesi Pustaka dan preview tidak punya pengajar, jadi pemilik sesinya sendiri yang bisa menekan "Nilai ulang" saat `grading_failed`. Override pengajar tetap dipertahankan bila sesi dinilai ulang, dan nilai final dihitung ulang dari hasil AI baru dengan level override itu. Setelah pengajar menyimpan tinjauan, pelajar melihat pemberitahuan "Nilai baru dari pengajar" di dashboard sampai membuka ringkasan sesinya. Kalau tetap gagal, status menjadi `grading_failed`, Pengajar bisa memicu penilaian ulang, dan pelajar melihat "Penilaian sedang diproses".
 
 ## 5. Mode Pustaka (latihan bebas)
 
