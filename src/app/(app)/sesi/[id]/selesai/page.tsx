@@ -72,7 +72,11 @@ async function Report({ session, graded, turns, isOwn, isReviewer }: { session: 
               <p className="font-medium">{c.criterion}</p>
               <p className="font-mono text-label uppercase text-ink-2 sm:row-span-2 sm:text-right">
                 <span className="font-display text-2xl tabular-nums text-ink">{c.level}</span>/4 · {LEVEL_LABEL[c.level]}
-                {c.level !== c.ai && <span className="block">AI: {c.ai}/4 · diubah pengajar</span>}
+                {graded.reviewed && (
+                  <span className="block">
+                    AI: {c.ai}/4 · {c.level !== c.ai ? "diubah pengajar" : "dikonfirmasi pengajar"}
+                  </span>
+                )}
               </p>
               <p className="text-sm text-ink-2">{c.rationale}</p>
             </li>
@@ -207,7 +211,7 @@ async function Summary({ params }: { params: PageProps<"/sesi/[id]/selesai">["pa
   // RLS: same readers as the session.
   const { data: ev } = await supabase
     .from("evaluations")
-    .select("ai_result, ai_score, final_score, override, comment, reviewer_id")
+    .select("ai_result, ai_score, final_score, override, comment, reviewer_id, reviewed_at, review_seen_at")
     .eq("session_id", id)
     .maybeSingle();
   const graded: Graded | null =
@@ -221,6 +225,8 @@ async function Summary({ params }: { params: PageProps<"/sesi/[id]/selesai">["pa
           reviewed: ev.reviewer_id !== null,
         }
       : null;
+  // The learner opened the report: the teacher-review notice on the dashboard is now read (each review resets it).
+  if (isOwn && ev?.reviewed_at && !ev.review_seen_at) await supabase.rpc("mark_review_seen", { p_session_id: id });
 
   return (
     <div className="grid gap-10 lg:grid-cols-12">
@@ -232,7 +238,7 @@ async function Summary({ params }: { params: PageProps<"/sesi/[id]/selesai">["pa
             <span className="block font-mono text-label uppercase text-ink-2">{graded.reviewed ? "Nilai final" : "Nilai"}</span>
             <span className="font-display text-7xl tabular-nums">{graded.score}</span>
             <span className="font-mono text-label uppercase text-ink-2"> / 100</span>
-            {graded.reviewed && graded.aiScore !== graded.score && (
+            {graded.reviewed && (
               <span className="block font-mono text-label uppercase text-ink-2">Nilai AI {graded.aiScore} · ditinjau pengajar</span>
             )}
           </p>

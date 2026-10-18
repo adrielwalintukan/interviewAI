@@ -205,7 +205,7 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
 
   // RLS: the class owner reads its sessions, evaluations and members' profiles.
   // shortcut: newest 100 attempts only; the class dashboard (US-G-08, #13) replaces this list with per-assignment views.
-  const { data: results } = await supabase
+  const { data: results, error: resultsError } = await supabase
     .from("sessions")
     .select("id, status, started_at, profiles(display_name), evaluations(final_score, reviewer_id), assignment:assignments!inner(class_id, v:scenario_versions(title))")
     .eq("assignment.class_id", id)
@@ -240,7 +240,13 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
       <section className="mt-16 border-t border-rule pt-10 lg:max-w-4xl">
         <p className="font-mono text-label uppercase text-accent">Hasil wawancara</p>
         <div className="mt-4">
-          <ClassResults rows={results ?? []} />
+          {resultsError ? (
+            <p role="alert" className="border-l-2 border-accent pl-4 text-accent">
+              Hasil wawancara gagal dimuat. Muat ulang halaman ini; bila masih gagal, hubungi admin.
+            </p>
+          ) : (
+            <ClassResults rows={results ?? []} />
+          )}
         </div>
       </section>
       <div className="mt-16 grid gap-12 border-t border-rule pt-10 lg:grid-cols-12">
