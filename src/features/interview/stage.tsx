@@ -200,6 +200,17 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
         flushLiveTurn();
         setActivity("idle");
       },
+      onStall: () => {
+        // Live heard the learner but never closed the turn: save it and send it as text so the interview goes on.
+        const text = pending.current.learner.trim();
+        if (!text || !live.current?.isOpen) return;
+        pending.current.learner = "";
+        setPartial((p) => ({ ...p, learner: "" }));
+        pushTurn({ speaker: "learner", text });
+        void logTurn(sessionId, "learner", text);
+        live.current.sendText(text);
+        setActivity("thinking");
+      },
       onClose: ({ ready }) => {
         clearTimeout(failTimer);
         if (phaseRef.current === "ending") return;
