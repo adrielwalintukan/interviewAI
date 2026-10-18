@@ -22,6 +22,7 @@ export async function speakLastReply(sessionId: string): Promise<{ audio: string
   if (!ctx) return { audio: null };
 
   // Each reply is claimed once in the DB, so replaying this action can't burn the TTS quota.
+  // Nothing to speak (already spoken / no reply) is not logged: no request was made.
   const { data: text } = await ctx.supabase.rpc("claim_tts", { p_session_id: sessionId });
   if (typeof text !== "string" || !text) return { audio: null };
 
@@ -29,6 +30,7 @@ export async function speakLastReply(sessionId: string): Promise<{ audio: string
   try {
     env = ttsEnv();
   } catch {
+    await logLlmCall({ task: "tts", provider: "gemini", model: "", latencyMs: 0, status: "unconfigured", sessionId });
     return { audio: null };
   }
   const started = Date.now();

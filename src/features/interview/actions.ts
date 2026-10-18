@@ -81,11 +81,15 @@ export async function requestLiveToken(sessionId: string): Promise<LiveGrant> {
   try {
     env = liveEnv();
   } catch {
+    await logLlmCall({ task: "live", provider: "gemini", model: "", latencyMs: 0, status: "unconfigured", sessionId });
     return { mode: "fallback", reason: "unavailable" };
   }
 
   const { data: claimed } = await ctx.supabase.rpc("claim_live_slot", { p_session_id: sessionId, p_max: MAX_LIVE });
-  if (!claimed) return { mode: "fallback", reason: "busy" };
+  if (!claimed) {
+    await logLlmCall({ task: "live", provider: "gemini", model: env.LIVE_MODEL, latencyMs: 0, status: "busy", sessionId });
+    return { mode: "fallback", reason: "busy" };
+  }
 
   const now = Date.now();
   const model = `models/${env.LIVE_MODEL}`;

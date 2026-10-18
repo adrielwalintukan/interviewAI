@@ -8,7 +8,8 @@ export type LlmCall = {
   provider: "9router" | "gemini";
   model: string;
   latencyMs: number;
-  status: "ok" | "error" | "timeout" | "fallback";
+  /** `busy` / `unconfigured`: Live/TTS request that never reached the provider (no free slot, env not set). */
+  status: "ok" | "error" | "timeout" | "fallback" | "busy" | "unconfigured";
   tokensIn?: number;
   tokensOut?: number;
   sessionId?: string;

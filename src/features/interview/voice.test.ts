@@ -1,11 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const SESSION = "00000000-0000-4000-8000-000000000001";
-const state = { session: true as boolean, lastReply: "Selamat pagi." as string | null };
+const state = { session: true as boolean, lastReply: "Selamat pagi." as string | null, configured: true };
 const rpc = vi.fn();
+const logCall = vi.fn(async () => {});
 
 vi.mock("@/features/auth/dal", () => ({ requireUser: async () => ({ id: "learner-1", role: "pelajar" }) }));
-vi.mock("@/lib/env", () => ({ ttsEnv: () => ({ GEMINI_API_KEY: "k", TTS_MODEL: "tts-model" }) }));
+vi.mock("@/lib/env", () => ({
+  ttsEnv: () => {
+    if (!state.configured) throw new Error("env");
+    return { GEMINI_API_KEY: "k", TTS_MODEL: "tts-model" };
+  },
+}));
+vi.mock("@/lib/llm/log", async (orig) => ({ ...(await orig<typeof import("@/lib/llm/log")>()), logLlmCall: logCall }));
 vi.mock("./context", () => ({
   loadOwnActiveSession: async () => (state.session ? { supabase: { rpc }, voice: "Aoede" } : null),
 }));
@@ -17,6 +24,8 @@ const { speakLastReply } = await import("./voice");
 beforeEach(() => {
   state.session = true;
   state.lastReply = "Selamat pagi.";
+  state.configured = true;
+  logCall.mockClear();
   rpc.mockReset().mockImplementation(async () => ({ data: state.lastReply }));
   fetchMock.mockReset().mockResolvedValue(new Response(JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { data: "UENN" } }] } }] })));
 });
@@ -43,6 +52,14 @@ describe("speakLastReply", () => {
     state.lastReply = null;
     expect(await speakLastReply(SESSION)).toEqual({ audio: null });
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(logCall).not.toHaveBeenCalled();
+  });
+
+  it("logs `unconfigured` without calling the TTS when its env is not set", async () => {
+    state.configured = false;
+    expect(await speakLastReply(SESSION)).toEqual({ audio: null });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(logCall).toHaveBeenCalledWith({ task: "tts", provider: "gemini", model: "", latencyMs: 0, status: "unconfigured", sessionId: SESSION });
   });
 
   it("falls back to text only when the TTS fails or the quota is exhausted", async () => {
