@@ -142,7 +142,13 @@ Aturan:
   - Tanpa `stream: false` eksplisit, 9router membalas dalam format SSE. Gateway selalu mengirim `stream: false`.
   - `response_format: json_object` diabaikan; jawaban bisa dibungkus ```` ```json ```` + teks tambahan. Parser M4 harus mengambil blok JSON pertama sebelum validasi Zod.
   - Latensi `ag/gemini-3.8-flash` lewat 9router sekitar 5,5–6,5 dtk per jawaban pendek. Ini melebihi target mode fallback (< 3 dtk); ukur ulang di M3 dan pertimbangkan Gemini langsung untuk chat persona.
-- **Pencatatan.** Setiap panggilan mencatat provider, model, latensi, status, dan jumlah token ke tabel `llm_calls` untuk dipantau Admin. Isi prompt tidak ikut dicatat.
+- **Pencatatan.** Setiap **percobaan provider** mencatat satu baris di `llm_calls` (`src/lib/llm/log.ts`): task, provider, model, latensi, status, jumlah token bila ada di respons, dan `session_id` bila panggilan milik sesi. Isi prompt, transkrip, dan secret tidak ikut dicatat.
+  - Task: `chat`, `grader`, `generator` (lewat gateway; `generator` memakai `GRADER_MODEL` / `GEMINI_FALLBACK_MODEL`, timeout 60 dtk), `live` (pembuatan token Gemini Live di `requestLiveToken`), `tts` (`speakLastReply`).
+  - Status: `ok`; `timeout`; `fallback` = gagal dengan error yang boleh fallback dan provider berikutnya dicoba; `error` = gagal tanpa provider lain untuk dicoba. Dua status untuk permintaan Live/TTS yang **tidak sampai ke provider** (latensi 0, tidak memakai kuota): `busy` = slot Live penuh (`claim_live_slot` sukses mengembalikan `false`, pelajar langsung ke mode Fallback; bila RPC-nya error, dicatat `error`, bukan `busy`); `unconfigured` = env Live/TTS belum diisi (model kosong).
+  - Definisi `timeout` ada di satu tempat (`isTimeoutError`, `src/lib/llm/log.ts`): `APIConnectionTimeoutError` dari OpenAI SDK, atau `fetch` yang dibatalkan `AbortSignal.timeout()` (`DOMException` `TimeoutError`, saat menunggu header maupun body). Kegagalan koneksi lain (ditolak, DNS) bukan timeout: dicatat `fallback` atau `error`.
+  - **Batas cakupan:** setiap percobaan ke provider, ditambah `busy` dan `unconfigured` di atas. Yang **tidak** dicatat: tidak ada balasan baru untuk TTS (`claim_tts` kosong, misalnya balasan sudah pernah diucapkan), karena tidak ada permintaan suara sama sekali.
+  - **Retensi:** baris dengan `session_id` ikut terhapus bersama sesinya. Baris tanpa sesi (task `generator`) disimpan **1 tahun**, lalu dihapus `purge_llm_calls()` (security definer, hanya service role). Fungsi ini dipanggil job pembersihan bulanan (#15).
+  - Penulisan log ditunggu paling lama 2 dtk dan kegagalannya ditelan: log tidak boleh memutus atau mengubah panggilan yang dicatatnya.
 
 ## 5. Avatar & lip-sync
 
@@ -194,7 +200,7 @@ erDiagram
 | `sessions` | `id`, `user_id`, `kind` (`assignment`/`library`/`preview`), `assignment_id` (null bila pustaka/preview atau tugas dihapus), `scenario_version_id`, `mode` (`live`/`fallback`), `status` (`active`/`ended`/`grading`/`graded`/`grading_failed`), `prompt_version`, `started_at`, `ends_at` (otoritatif server), `ended_at`. Ditulis hanya lewat RPC |
 | `messages` | PK `(session_id, seq)`, `speaker` (`learner`/`character`), `text` (≤ 2000), `created_at`, `spoken_at` (jawaban karakter sudah dibacakan TTS mode hemat). Ditulis hanya lewat `append_message()` / `claim_tts()` |
 | `evaluations` | `session_id`, `ai_result` (jsonb), `ai_score`, `final_score`, `override` (jsonb), `reviewer_id`, `comment`, `reviewed_at`, `review_seen_at`, `grader_model`, `prompt_version` |
-| `llm_calls` | `id`, `task`, `provider`, `model`, `latency_ms`, `status`, `tokens_in/out`, `session_id?` |
+| `llm_calls` | `id`, `task`, `provider`, `model`, `latency_ms`, `status`, `tokens_in/out`, `session_id?` (cascade), `created_at` (index) |
 | `audit_log` | `actor_id`, `action`, `target`, `created_at` |
 
 Nilai terbaik per tugas tidak disimpan sebagai kolom. Nilai ini dihitung lewat view `assignment_scores` (MAX dari `final_score`, yang diisi `finish_grading` saat dinilai dan sama dengan `ai_score` sampai pengajar meninjau). Lihat §8b.
@@ -226,6 +232,7 @@ Nilai terbaik per tugas tidak disimpan sebagai kolom. Nilai ini dihitung lewat v
 | `sessions`, `messages` | baris miliknya | sesi pada kelas miliknya + preview miliknya | semua |
 | `evaluations` | baca miliknya (`ai_result` hanya berisi id fakta, bukan isi fakta) | baca di kelasnya; override lewat `reviewEvaluation` → RPC `review_evaluation` | semua |
 | `assignment_scores` (view, `security_invoker`) | baris miliknya | kelas miliknya | semua |
+| `llm_calls` | — | — | baca semua; tulis hanya server (service role) |
 | `scenarios` (draf) | **tidak ada akses** | skenario buatannya | semua |
 | `scenario_version_secrets` | **tidak ada akses** | skenario buatannya | semua |
 | `scenario_versions` (brief) | versi yang ditugaskan ke kelasnya + versi publik terkini | buatannya + yang ditugaskan + publik terkini | semua |

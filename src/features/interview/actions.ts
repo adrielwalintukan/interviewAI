@@ -8,6 +8,7 @@ import { requireUser } from "@/features/auth/dal";
 import { gradeSession } from "@/features/grading/grade";
 import { liveEnv } from "@/lib/env";
 import { complete } from "@/lib/llm/gateway";
+import { isTimeoutError, logLlmCall } from "@/lib/llm/log";
 import { PERSONA_PROMPT_VERSION, buildPersonaPrompt } from "@/lib/llm/prompts/persona";
 import { createClient } from "@/lib/supabase/server";
 import { loadOwnActiveSession } from "./context";
@@ -80,14 +81,21 @@ export async function requestLiveToken(sessionId: string): Promise<LiveGrant> {
   try {
     env = liveEnv();
   } catch {
+    await logLlmCall({ task: "live", provider: "gemini", model: "", latencyMs: 0, status: "unconfigured", sessionId });
     return { mode: "fallback", reason: "unavailable" };
   }
 
-  const { data: claimed } = await ctx.supabase.rpc("claim_live_slot", { p_session_id: sessionId, p_max: MAX_LIVE });
-  if (!claimed) return { mode: "fallback", reason: "busy" };
+  // Only a successful `false` means the slots are full; an RPC error is a failure, not capacity.
+  const { data: claimed, error: claimError } = await ctx.supabase.rpc("claim_live_slot", { p_session_id: sessionId, p_max: MAX_LIVE });
+  if (claimError || !claimed) {
+    await logLlmCall({ task: "live", provider: "gemini", model: env.LIVE_MODEL, latencyMs: 0, status: claimError ? "error" : "busy", sessionId });
+    return { mode: "fallback", reason: claimError ? "unavailable" : "busy" };
+  }
 
   const now = Date.now();
   const model = `models/${env.LIVE_MODEL}`;
+  const log = (status: "ok" | "error" | "timeout") =>
+    logLlmCall({ task: "live", provider: "gemini", model: env.LIVE_MODEL, latencyMs: Date.now() - now, status, sessionId });
   try {
     const res = await fetch(`${GEMINI}/v1beta/auth_tokens`, {
       method: "POST",
@@ -111,8 +119,10 @@ export async function requestLiveToken(sessionId: string): Promise<LiveGrant> {
     });
     const body = (await res.json()) as { name?: string };
     if (!res.ok || !body.name) throw new Error(`token ${res.status}`);
+    await log("ok");
     return { mode: "live", token: body.name, model };
-  } catch {
+  } catch (err) {
+    await log(isTimeoutError(err) ? "timeout" : "error");
     await ctx.supabase.rpc("release_live_slot", { p_session_id: sessionId });
     return { mode: "fallback", reason: "unavailable" };
   }
@@ -169,6 +179,7 @@ export async function chatTurn(sessionId: string, text: string | null): Promise<
   try {
     const res = await complete({
       task: "chat",
+      sessionId,
       messages: [
         { role: "system", content: buildPersonaPrompt(ctx.content) },
         ...(history ?? []).map((m) => ({ role: m.speaker === "learner" ? ("user" as const) : ("assistant" as const), content: m.text as string })),

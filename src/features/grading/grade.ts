@@ -14,7 +14,7 @@ const BACKOFF_MS = [0, 2_000, 6_000];
 export type GraderRun = { result: GradeResult; score: number; model: string };
 
 /** Asks the grader LLM, validates and scores. null after every attempt failed. No database access (used by `npm run eval`). */
-export async function runGrader(content: ScenarioContent, transcript: Turn[]): Promise<GraderRun | null> {
+export async function runGrader(content: ScenarioContent, transcript: Turn[], sessionId?: string): Promise<GraderRun | null> {
   const messages: ChatCompletionMessageParam[] = buildGraderMessages({
     learnerRole: content.learnerRole,
     objective: content.objective,
@@ -29,7 +29,7 @@ export async function runGrader(content: ScenarioContent, transcript: Turn[]): P
     let reply: string;
     let model: string;
     try {
-      ({ text: reply, model } = await complete({ task: "grader", json: true, messages }));
+      ({ text: reply, model } = await complete({ task: "grader", json: true, messages, sessionId }));
     } catch {
       continue; // both providers failed this round; back off and try again
     }
@@ -70,7 +70,7 @@ export async function gradeClaimed(sessionId: string): Promise<void> {
       db.from("evaluations").select("override").eq("session_id", sessionId).maybeSingle(),
     ]);
     const scenario = session && (await loadScenarioContent(session.scenario_version_id as string));
-    if (scenario) run = await runGrader(scenario.content, (rows ?? []) as Turn[]);
+    if (scenario) run = await runGrader(scenario.content, (rows ?? []) as Turn[], sessionId);
     // A teacher's per-criterion override survives a re-grade; the final score is recomputed from the new facts.
     const override = (previous?.override ?? null) as Override | null;
     if (run && scenario) finalScore = override ? computeScore({ facts: run.result.facts, criteria: applyOverride(run.result, override) }, scenario.content) : run.score;
