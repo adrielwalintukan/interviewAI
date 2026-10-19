@@ -291,7 +291,11 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // Esc while the dialog is open closes it (native cancel), so don't reopen it here.
-      if (e.key === "Escape" && !endDialog.current?.open && phaseRef.current !== "ready" && phaseRef.current !== "ending") confirmEnd();
+      if (e.key === "Escape" && !endDialog.current?.open && phaseRef.current !== "ready" && phaseRef.current !== "ending") {
+        // Otherwise Chrome turns this same Esc into a close request that shuts the dialog we just opened.
+        e.preventDefault();
+        confirmEnd();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
