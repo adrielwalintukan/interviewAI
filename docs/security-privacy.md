@@ -23,7 +23,7 @@ Catatan pihak ketiga: audio dan teks diproses oleh Google (Gemini) dan provider 
 
 ## 3. Retensi & penghapusan
 
-- **Transkrip & evaluasi** disimpan selama akun aktif, atau sampai kelas diarsipkan + 1 tahun (job pembersihan bulanan).
+- **Transkrip & evaluasi** disimpan selama akun aktif, atau sampai kelas diarsipkan + 1 tahun. Job pg_cron `monthly-retention` (tanggal 1 tiap bulan) menghapus sesi tugas kelas tersebut beserta pesan dan evaluasinya, lalu mencatat jumlahnya di `audit_log` tanpa data pribadi. Kelas yang dibuka kembali dari arsip sebelum 1 tahun tidak tersentuh.
 - **Metadata LLM (`llm_calls`)**: baris milik sesi ikut terhapus bersama sesinya; baris tanpa sesi (generator) disimpan 1 tahun, lalu dihapus `purge_llm_calls()` lewat job pembersihan bulanan.
 - **Penghapusan atas permintaan.** Admin bisa menghapus pelajar dari `/admin` setelah mengetik ulang nama tampilannya. Penghapusan bersifat cascade (akun Auth, profil, keanggotaan, sesi, pesan, evaluasi, `llm_calls` milik sesi) dan tercatat di `audit_log` dalam transaksi yang sama. `audit_log` hanya menyimpan id pelaku, aksi, dan id yang dihapus; tidak ada nama, username, atau email. Hanya akun pelajar yang bisa dihapus lewat fitur ini.
 - **Unduh data.** Pelajar bisa mengunduh transkripnya sendiri (Should).
