@@ -20,7 +20,8 @@ export function DeleteStudentButton({ userId, name }: { userId: string; name: st
           setTyped("");
           dialog.current?.showModal();
         }}
-        className="min-h-11 rounded-sm px-2 text-sm text-accent underline-offset-4 hover:underline"
+        // relative keeps the sr-only text inside the scrolling table, or it widens the whole page at 360 px.
+        className="relative min-h-11 rounded-sm px-2 text-sm text-accent underline-offset-4 hover:underline"
       >
         Hapus data
         <span className="sr-only"> {name}</span>
