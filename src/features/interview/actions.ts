@@ -85,10 +85,11 @@ export async function requestLiveToken(sessionId: string): Promise<LiveGrant> {
     return { mode: "fallback", reason: "unavailable" };
   }
 
-  const { data: claimed } = await ctx.supabase.rpc("claim_live_slot", { p_session_id: sessionId, p_max: MAX_LIVE });
-  if (!claimed) {
-    await logLlmCall({ task: "live", provider: "gemini", model: env.LIVE_MODEL, latencyMs: 0, status: "busy", sessionId });
-    return { mode: "fallback", reason: "busy" };
+  // Only a successful `false` means the slots are full; an RPC error is a failure, not capacity.
+  const { data: claimed, error: claimError } = await ctx.supabase.rpc("claim_live_slot", { p_session_id: sessionId, p_max: MAX_LIVE });
+  if (claimError || !claimed) {
+    await logLlmCall({ task: "live", provider: "gemini", model: env.LIVE_MODEL, latencyMs: 0, status: claimError ? "error" : "busy", sessionId });
+    return { mode: "fallback", reason: claimError ? "unavailable" : "busy" };
   }
 
   const now = Date.now();

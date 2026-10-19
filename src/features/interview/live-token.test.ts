@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const SESSION = "00000000-0000-4000-8000-000000000001";
-const state = { configured: true, slotFree: true };
+const state = { configured: true, slotFree: true, claimFails: false };
 const rpc = vi.fn();
 const logCall = vi.fn(async () => {});
 
@@ -35,8 +35,11 @@ const { requestLiveToken } = await import("./actions");
 beforeEach(() => {
   state.configured = true;
   state.slotFree = true;
+  state.claimFails = false;
   logCall.mockClear();
-  rpc.mockReset().mockImplementation(async (fn: string) => ({ data: fn === "claim_live_slot" ? state.slotFree : null }));
+  rpc.mockReset().mockImplementation(async (fn: string) =>
+    fn === "claim_live_slot" && state.claimFails ? { data: null, error: { message: "db down" } } : { data: fn === "claim_live_slot" ? state.slotFree : null, error: null },
+  );
   fetchMock.mockReset().mockResolvedValue(new Response(JSON.stringify({ name: "auth_tokens/t" })));
 });
 
@@ -59,6 +62,13 @@ describe("requestLiveToken logging", () => {
     expect(await requestLiveToken(SESSION)).toEqual({ mode: "fallback", reason: "busy" });
     expect(fetchMock).not.toHaveBeenCalled();
     expect(logCall).toHaveBeenCalledExactlyOnceWith({ task: "live", provider: "gemini", model: "live-model", latencyMs: 0, status: "busy", sessionId: SESSION });
+  });
+
+  it("logs a failed slot claim as `error`, not `busy`, and falls back without calling Gemini", async () => {
+    state.claimFails = true;
+    expect(await requestLiveToken(SESSION)).toEqual({ mode: "fallback", reason: "unavailable" });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(logCall).toHaveBeenCalledExactlyOnceWith({ task: "live", provider: "gemini", model: "live-model", latencyMs: 0, status: "error", sessionId: SESSION });
   });
 
   it("logs `error` and releases the slot when Gemini refuses", async () => {
