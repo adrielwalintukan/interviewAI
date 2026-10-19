@@ -204,7 +204,7 @@ erDiagram
 | `messages` | PK `(session_id, seq)`, `speaker` (`learner`/`character`), `text` (≤ 2000), `created_at`, `spoken_at` (jawaban karakter sudah dibacakan TTS mode hemat). Ditulis hanya lewat `append_message()` / `claim_tts()` |
 | `evaluations` | `session_id`, `ai_result` (jsonb), `ai_score`, `final_score`, `override` (jsonb), `reviewer_id`, `comment`, `reviewed_at`, `review_seen_at`, `grader_model`, `prompt_version` |
 | `llm_calls` | `id`, `task`, `provider`, `model`, `latency_ms`, `status`, `tokens_in/out`, `session_id?` (cascade), `created_at` (index) |
-| `audit_log` | `actor_id`, `action`, `target`, `created_at` |
+| `audit_log` | `id`, `actor_id` (set null), `action` (`delete_student`), `target` (id yang dihapus, **bukan** nama/username/email), `created_at`. Ditulis hanya lewat RPC `delete_student` |
 
 Nilai terbaik per tugas tidak disimpan sebagai kolom. Nilai ini dihitung lewat view `assignment_scores` (MAX dari `final_score`, yang diisi `finish_grading` saat dinilai dan sama dengan `ai_score` sampai pengajar meninjau). Lihat §8b.
 
@@ -241,6 +241,7 @@ Nilai terbaik per tugas tidak disimpan sebagai kolom. Nilai ini dihitung lewat v
 | `scenario_versions` (brief) | versi yang ditugaskan ke kelasnya + versi publik terkini | buatannya + yang ditugaskan + publik terkini | semua |
 | `assignments` | kelas yang diikuti | kelas miliknya (buat/ubah/hapus) | semua |
 | `classes` | kelas yang diikuti | kelas miliknya | semua |
+| `audit_log` | — | — | baca semua; tulis hanya lewat RPC `delete_student` |
 
 Data yang perlu fakta (persona prompt, grader) dibaca oleh server dengan service role, setelah otorisasi dicek di kode. Detail lengkap: [security-privacy.md](security-privacy.md).
 
@@ -261,12 +262,15 @@ Mutasi memakai **Server Actions** (tidak ada folder `app/api`). Setiap action me
 | `generateDraft`, `saveDraft`, `publishScenario`, `setScenarioPublic` | `features/scenario/actions.ts` | Generator & editor skenario | pengajar (penulis) |
 | `createClass`, `joinClass`, `bulkCreateStudents`, `createAssignment`, … | `features/classroom/actions.ts` | Kelas, anggota, tugas | sesuai peran |
 | `resetPassword`, `updateUserAccess` | `features/auth`, `features/admin` | Reset password, akses pengguna | admin/pengajar kelas |
+| `deleteStudent` | `features/admin/actions.ts` | Hapus pelajar permanen (US-A-02) lewat RPC `delete_student` | admin |
 
 **Penilaian (M4, `features/grading/`).** `gradeSession` berjalan sebagai service role setelah kepemilikan dicek: `claim_grading` → baca transkrip + rahasia skenario → `runGrader` (prompt `grader@1`, gateway task `grader`, `extractJson`, validasi Zod + validator bukti, hingga 3 percobaan dengan backoff 0/2/6 dtk, umpan balik saat JSON tidak valid) → `finish_grading`. Nilai dihitung di kode (`computeScore`). Halaman `/sesi/[id]/selesai` juga memicu `gradeSession` (lewat `after()`) bila pemiliknya membuka sesi yang sudah berakhir tapi belum dinilai, mis. sesi yang ditutup timer, lalu memuat ulang sendiri tiap 5 dtk selama diproses. Pengajar meninjau dari tombol **Hasil** per tugas di halaman kelas → `/kelas/[id]/tugas/[tugasId]` (dashboard tugas, US-G-08) → halaman ringkasan sesi (bagian "Tinjau nilai"). Notifikasi ke pelajar (US-G-07) bersifat in-app: dashboard pelajar menampilkan "Nilai baru dari pengajar" untuk evaluasi dengan `reviewed_at` terisi dan `review_seen_at` kosong; membuka ringkasan sesi memanggil `mark_review_seen`.
 
 **Dashboard tugas (US-G-08, `features/grading/class-dashboard.ts`).** Halaman `/kelas/[id]/tugas/[tugasId]` hanya untuk pengajar pemilik kelas dan admin. Isinya: tabel pelajar (status belum mulai / berjalan / selesai / dinilai, percobaan dan nilai terbaik dari `assignment_scores`, tautan ke percobaan dengan nilai terbaik), sebaran nilai terbaik per rentang 10, 5 fakta yang paling sering terlewat, dan semua percobaan. Agregasi dilakukan di Server Component: `ai_result` (hanya id fakta) dibaca lewat RLS, daftar fakta lewat `loadScenarioContent` setelah cek akses. Sebuah fakta dihitung terlewat oleh pelajar bila tidak ditemukan di percobaan bernilai mana pun miliknya. **Isi fakta hanya dirender untuk penulis skenario**; pengajar lain (skenario Pustaka) dan admin hanya melihat kategorinya.
 
 **Ekspor nilai (US-G-09).** Route handler `GET /kelas/[id]/tugas/[tugasId]/nilai-csv` memakai loader yang sama dengan dashboard tugas (`features/grading/assignment-results.ts`, otorisasi pemilik kelas/admin, nilai dari `assignment_scores`). Isinya satu baris per pelajar kelas, termasuk yang belum mulai (nilai kosong): `nama, username, percobaan, nilai_final_terbaik, status`. Setiap sel lewat `csvCell` (cegah formula), UTF-8 dengan BOM, `Cache-Control: private, no-store`, nama file `nilai-<judul>-<YYYY-MM-DD>.csv`. Tugas yang tidak ada dan tugas milik orang lain sama-sama dijawab 404.
+
+**Hapus data pelajar (US-A-02).** Di tabel Akun `/admin`, baris pelajar punya tombol **Hapus data**. Tombol ini membuka dialog yang meminta nama tampilan pelajar diketik ulang. `deleteStudent` (admin, Zod) memanggil RPC `delete_student(p_user_id, p_confirm)` sebagai pemanggil. Fungsi `security definer` itu menolak non-admin (`42501`), diri sendiri, akun yang bukan pelajar, serta konfirmasi yang tidak cocok (`22023`). Setelah itu ia menghapus baris `auth.users` dan menulis `audit_log` dalam **satu transaksi**, sehingga tidak ada penghapusan tanpa catatan. `profiles` dan semua turunannya ikut terhapus cascade: `class_members`, `sessions` → `messages`, `evaluations`, `llm_calls`. Tes pgTAP juga memastikan setiap FK di skema `public` ke `auth.users`/`profiles`/`sessions` bersifat cascade atau set null, termasuk tabel yang ditambahkan nanti. Pengajar tidak bisa dihapus lewat fitur ini, karena kelas dan skenarionya akan ikut terhapus.
 
 ### 8b. RPC penilaian (M4)
 
