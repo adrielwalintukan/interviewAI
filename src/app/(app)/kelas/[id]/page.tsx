@@ -86,11 +86,17 @@ function AssignmentList({
               <span>{a.max_attempts}× percobaan</span>
             </p>
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-2">
+          <div className="flex max-w-24 shrink-0 flex-col items-end gap-2 sm:max-w-none">
             {asTeacher && (
               <Link href={`/kelas/${classId}/tugas/${a.id}`} className="inline-flex min-h-11 items-center rounded-sm border border-rule px-4 text-sm hover:border-ink">
                 Hasil<span className="sr-only"> tugas {a.v?.title}</span>
               </Link>
+            )}
+            {asTeacher && (
+              // A file download, not a page: plain <a> so the client router doesn't try to render it.
+              <a href={`/kelas/${classId}/tugas/${a.id}/nilai-csv`} download className="inline-flex min-h-11 items-center px-2 text-right text-sm text-ink-2 underline-offset-4 hover:text-ink hover:underline">
+                Unduh CSV nilai<span className="sr-only"> tugas {a.v?.title}</span>
+              </a>
             )}
             {canEdit ? (
               <form action={deleteAssignment}>

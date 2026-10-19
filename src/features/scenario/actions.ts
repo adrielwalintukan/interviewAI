@@ -82,7 +82,7 @@ export async function generateDraft(id: string, input: z.input<typeof generateIn
   for (let attempt = 0; attempt < 2; attempt++) {
     let reply: string;
     try {
-      reply = (await complete({ task: "grader", json: true, messages, temperature: 0.8 })).text;
+      reply = (await complete({ task: "generator", json: true, messages, temperature: 0.8 })).text;
     } catch {
       return { ok: false, error: "Layanan AI sedang sibuk. Coba lagi sebentar lagi." };
     }

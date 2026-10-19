@@ -24,6 +24,7 @@ Catatan pihak ketiga: audio dan teks diproses oleh Google (Gemini) dan provider 
 ## 3. Retensi & penghapusan
 
 - **Transkrip & evaluasi** disimpan selama akun aktif, atau sampai kelas diarsipkan + 1 tahun (job pembersihan bulanan).
+- **Metadata LLM (`llm_calls`)**: baris milik sesi ikut terhapus bersama sesinya; baris tanpa sesi (generator) disimpan 1 tahun, lalu dihapus `purge_llm_calls()` lewat job pembersihan bulanan.
 - **Penghapusan atas permintaan.** Admin bisa menghapus pelajar. Penghapusan bersifat cascade (sesi, pesan, evaluasi, keanggotaan) dan tercatat di `audit_log` tanpa menyimpan data yang dihapus.
 - **Unduh data.** Pelajar bisa mengunduh transkripnya sendiri (Should).
 

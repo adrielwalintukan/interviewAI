@@ -103,6 +103,9 @@ sequenceDiagram
 - **Kuota free tier (spike):** sekitar **6 sesi Live bersamaan** per project (8 koneksi serentak → 6 berhasil, 2 ditolak `1011 exceeded your current quota`). `LIVE_MAX_CONCURRENT` default **5**; sesi berikutnya langsung masuk Fallback. Kuota per menit/hari belum diukur.
 - **Durasi.** Durasi sesi maksimal mengikuti `expireTime` token, yang diset ≥ durasi tugas + 2 menit.
 - **Barge-in.** Ditangani oleh VAD bawaan Live API. Saat event interrupt datang, client menghentikan antrean audio yang sedang diputar.
+- **Akhir giliran pelajar (temuan uji 2026-10-18, `gemini-3.8-live`).** Giliran pelajar hanya ditutup oleh VAD server (`voiceActivity` `ACTIVITY_END`); transkrip pelajar normalnya tiba bersamaan dengan itu dan jawaban mulai < 1 dtk kemudian. Bila aliran audio berhenti di tengah ucapan, giliran tidak pernah ditutup dan karakter diam selamanya; `audioStreamEnd` tidak memulihkannya. Karena itu:
+  - **Bisukan mikrofon tetap mengirim audio.** Track yang dinonaktifkan menghasilkan hening, sehingga VAD bisa menutup giliran.
+  - **Pengaman macet.** Bila transkrip pelajar tiba tetapi tidak ada keluaran karakter selama `STALL_MS` (6 dtk, `live-client.ts`), client menyimpan giliran pelajar dan mengirim teksnya sebagai giliran teks (`clientContent`); karakter lalu menjawab. "Keluaran" berarti audio atau transkrip keluaran; `modelTurn` tanpa audio (*thinking*) tidak dihitung. Selama karakter sedang menjawab (sampai `turnComplete`/`interrupted`), potongan transkrip pelajar yang terlambat tidak memasang pengaman, sehingga pertanyaan tidak dikirim ulang. Pengaman aktif paling banyak sekali per giliran (direset oleh `turnComplete`/`interrupted`). Giliran disimpan berurutan lewat satu antrean di client (`saveTurn`), dan "Akhiri" menunggu antrean itu sebelum `endSession`; `seq` server yang dibaca penilaian pun selalu sesuai urutan percakapan. Penyebab VAD tidak menutup giliran di perangkat pelajar (mis. derau ruangan) belum terbukti; pengaman ini menjaga wawancara tetap jalan apa pun penyebabnya.
 
 ### 3.2 Mode Fallback (mode hemat)
 
@@ -142,7 +145,13 @@ Aturan:
   - Tanpa `stream: false` eksplisit, 9router membalas dalam format SSE. Gateway selalu mengirim `stream: false`.
   - `response_format: json_object` diabaikan; jawaban bisa dibungkus ```` ```json ```` + teks tambahan. Parser M4 harus mengambil blok JSON pertama sebelum validasi Zod.
   - Latensi `ag/gemini-3.8-flash` lewat 9router sekitar 5,5–6,5 dtk per jawaban pendek. Ini melebihi target mode fallback (< 3 dtk); ukur ulang di M3 dan pertimbangkan Gemini langsung untuk chat persona.
-- **Pencatatan.** Setiap panggilan mencatat provider, model, latensi, status, dan jumlah token ke tabel `llm_calls` untuk dipantau Admin. Isi prompt tidak ikut dicatat.
+- **Pencatatan.** Setiap **percobaan provider** mencatat satu baris di `llm_calls` (`src/lib/llm/log.ts`): task, provider, model, latensi, status, jumlah token bila ada di respons, dan `session_id` bila panggilan milik sesi. Isi prompt, transkrip, dan secret tidak ikut dicatat.
+  - Task: `chat`, `grader`, `generator` (lewat gateway; `generator` memakai `GRADER_MODEL` / `GEMINI_FALLBACK_MODEL`, timeout 60 dtk), `live` (pembuatan token Gemini Live di `requestLiveToken`), `tts` (`speakLastReply`).
+  - Status: `ok`; `timeout`; `fallback` = gagal dengan error yang boleh fallback dan provider berikutnya dicoba; `error` = gagal tanpa provider lain untuk dicoba. Dua status untuk permintaan Live/TTS yang **tidak sampai ke provider** (latensi 0, tidak memakai kuota): `busy` = slot Live penuh (`claim_live_slot` sukses mengembalikan `false`, pelajar langsung ke mode Fallback; bila RPC-nya error, dicatat `error`, bukan `busy`); `unconfigured` = env Live/TTS belum diisi (model kosong).
+  - Definisi `timeout` ada di satu tempat (`isTimeoutError`, `src/lib/llm/log.ts`): `APIConnectionTimeoutError` dari OpenAI SDK, atau `fetch` yang dibatalkan `AbortSignal.timeout()` (`DOMException` `TimeoutError`, saat menunggu header maupun body). Kegagalan koneksi lain (ditolak, DNS) bukan timeout: dicatat `fallback` atau `error`.
+  - **Batas cakupan:** setiap percobaan ke provider, ditambah `busy` dan `unconfigured` di atas. Yang **tidak** dicatat: tidak ada balasan baru untuk TTS (`claim_tts` kosong, misalnya balasan sudah pernah diucapkan), karena tidak ada permintaan suara sama sekali.
+  - **Retensi:** baris dengan `session_id` ikut terhapus bersama sesinya. Baris tanpa sesi (task `generator`) disimpan **1 tahun**, lalu dihapus `purge_llm_calls()` (security definer, hanya service role). Fungsi ini dipanggil job pembersihan bulanan (#15).
+  - Penulisan log ditunggu paling lama 2 dtk dan kegagalannya ditelan: log tidak boleh memutus atau mengubah panggilan yang dicatatnya.
 
 ## 5. Avatar & lip-sync
 
@@ -194,10 +203,10 @@ erDiagram
 | `sessions` | `id`, `user_id`, `kind` (`assignment`/`library`/`preview`), `assignment_id` (null bila pustaka/preview atau tugas dihapus), `scenario_version_id`, `mode` (`live`/`fallback`), `status` (`active`/`ended`/`grading`/`graded`/`grading_failed`), `prompt_version`, `started_at`, `ends_at` (otoritatif server), `ended_at`. Ditulis hanya lewat RPC |
 | `messages` | PK `(session_id, seq)`, `speaker` (`learner`/`character`), `text` (≤ 2000), `created_at`, `spoken_at` (jawaban karakter sudah dibacakan TTS mode hemat). Ditulis hanya lewat `append_message()` / `claim_tts()` |
 | `evaluations` | `session_id`, `ai_result` (jsonb), `ai_score`, `final_score`, `override` (jsonb), `reviewer_id`, `comment`, `reviewed_at`, `review_seen_at`, `grader_model`, `prompt_version` |
-| `llm_calls` | `id`, `task`, `provider`, `model`, `latency_ms`, `status`, `tokens_in/out`, `session_id?` |
+| `llm_calls` | `id`, `task`, `provider`, `model`, `latency_ms`, `status`, `tokens_in/out`, `session_id?` (cascade), `created_at` (index) |
 | `audit_log` | `actor_id`, `action`, `target`, `created_at` |
 
-Nilai terbaik per tugas tidak disimpan sebagai kolom. Nilai ini dihitung lewat view `assignment_best_scores` (MAX dari `coalesce(final_score, ai_score)`).
+Nilai terbaik per tugas tidak disimpan sebagai kolom. Nilai ini dihitung lewat view `assignment_scores` (MAX dari `final_score`, yang diisi `finish_grading` saat dinilai dan sama dengan `ai_score` sampai pengajar meninjau). Lihat §8b.
 
 ## 6a. Auth & sesi (M1)
 
@@ -226,6 +235,7 @@ Nilai terbaik per tugas tidak disimpan sebagai kolom. Nilai ini dihitung lewat v
 | `sessions`, `messages` | baris miliknya | sesi pada kelas miliknya + preview miliknya | semua |
 | `evaluations` | baca miliknya (`ai_result` hanya berisi id fakta, bukan isi fakta) | baca di kelasnya; override lewat `reviewEvaluation` → RPC `review_evaluation` | semua |
 | `assignment_scores` (view, `security_invoker`) | baris miliknya | kelas miliknya | semua |
+| `llm_calls` | — | — | baca semua; tulis hanya server (service role) |
 | `scenarios` (draf) | **tidak ada akses** | skenario buatannya | semua |
 | `scenario_version_secrets` | **tidak ada akses** | skenario buatannya | semua |
 | `scenario_versions` (brief) | versi yang ditugaskan ke kelasnya + versi publik terkini | buatannya + yang ditugaskan + publik terkini | semua |
@@ -252,9 +262,11 @@ Mutasi memakai **Server Actions** (tidak ada folder `app/api`). Setiap action me
 | `createClass`, `joinClass`, `bulkCreateStudents`, `createAssignment`, … | `features/classroom/actions.ts` | Kelas, anggota, tugas | sesuai peran |
 | `resetPassword`, `updateUserAccess` | `features/auth`, `features/admin` | Reset password, akses pengguna | admin/pengajar kelas |
 
-**Penilaian (M4, `features/grading/`).** `gradeSession` berjalan sebagai service role setelah kepemilikan dicek: `claim_grading` → baca transkrip + rahasia skenario → `runGrader` (prompt `grader@1`, gateway task `grader`, `extractJson`, validasi Zod + validator bukti, hingga 3 percobaan dengan backoff 0/2/6 dtk, umpan balik saat JSON tidak valid) → `finish_grading`. Nilai dihitung di kode (`computeScore`). Halaman `/sesi/[id]/selesai` juga memicu `gradeSession` (lewat `after()`) bila pemiliknya membuka sesi yang sudah berakhir tapi belum dinilai, mis. sesi yang ditutup timer, lalu memuat ulang sendiri tiap 5 dtk selama diproses. Pengajar meninjau dari tombol **Hasil** per tugas di halaman kelas → `/kelas/[id]/tugas/[tugasId]` (dashboard tugas, US-G-08) → halaman ringkasan sesi (bagian "Tinjau nilai").
+**Penilaian (M4, `features/grading/`).** `gradeSession` berjalan sebagai service role setelah kepemilikan dicek: `claim_grading` → baca transkrip + rahasia skenario → `runGrader` (prompt `grader@1`, gateway task `grader`, `extractJson`, validasi Zod + validator bukti, hingga 3 percobaan dengan backoff 0/2/6 dtk, umpan balik saat JSON tidak valid) → `finish_grading`. Nilai dihitung di kode (`computeScore`). Halaman `/sesi/[id]/selesai` juga memicu `gradeSession` (lewat `after()`) bila pemiliknya membuka sesi yang sudah berakhir tapi belum dinilai, mis. sesi yang ditutup timer, lalu memuat ulang sendiri tiap 5 dtk selama diproses. Pengajar meninjau dari tombol **Hasil** per tugas di halaman kelas → `/kelas/[id]/tugas/[tugasId]` (dashboard tugas, US-G-08) → halaman ringkasan sesi (bagian "Tinjau nilai"). Notifikasi ke pelajar (US-G-07) bersifat in-app: dashboard pelajar menampilkan "Nilai baru dari pengajar" untuk evaluasi dengan `reviewed_at` terisi dan `review_seen_at` kosong; membuka ringkasan sesi memanggil `mark_review_seen`.
 
-**Dashboard tugas (US-G-08, `features/grading/class-dashboard.ts`).** Halaman `/kelas/[id]/tugas/[tugasId]` hanya untuk pengajar pemilik kelas dan admin. Isinya: tabel pelajar (status belum mulai / berjalan / selesai / dinilai, percobaan dan nilai terbaik dari `assignment_scores`, tautan ke percobaan dengan nilai terbaik), sebaran nilai terbaik per rentang 10, 5 fakta yang paling sering terlewat, dan semua percobaan. Agregasi dilakukan di Server Component: `ai_result` (hanya id fakta) dibaca lewat RLS, daftar fakta lewat `loadScenarioContent` setelah cek akses. Sebuah fakta dihitung terlewat oleh pelajar bila tidak ditemukan di percobaan bernilai mana pun miliknya. **Isi fakta hanya dirender untuk penulis skenario**; pengajar lain (skenario Pustaka) dan admin hanya melihat kategorinya. Notifikasi ke pelajar (US-G-07) bersifat in-app: dashboard pelajar menampilkan "Nilai baru dari pengajar" untuk evaluasi dengan `reviewed_at` terisi dan `review_seen_at` kosong; membuka ringkasan sesi memanggil `mark_review_seen`.
+**Dashboard tugas (US-G-08, `features/grading/class-dashboard.ts`).** Halaman `/kelas/[id]/tugas/[tugasId]` hanya untuk pengajar pemilik kelas dan admin. Isinya: tabel pelajar (status belum mulai / berjalan / selesai / dinilai, percobaan dan nilai terbaik dari `assignment_scores`, tautan ke percobaan dengan nilai terbaik), sebaran nilai terbaik per rentang 10, 5 fakta yang paling sering terlewat, dan semua percobaan. Agregasi dilakukan di Server Component: `ai_result` (hanya id fakta) dibaca lewat RLS, daftar fakta lewat `loadScenarioContent` setelah cek akses. Sebuah fakta dihitung terlewat oleh pelajar bila tidak ditemukan di percobaan bernilai mana pun miliknya. **Isi fakta hanya dirender untuk penulis skenario**; pengajar lain (skenario Pustaka) dan admin hanya melihat kategorinya.
+
+**Ekspor nilai (US-G-09).** Route handler `GET /kelas/[id]/tugas/[tugasId]/nilai-csv` memakai loader yang sama dengan dashboard tugas (`features/grading/assignment-results.ts`, otorisasi pemilik kelas/admin, nilai dari `assignment_scores`). Isinya satu baris per pelajar kelas, termasuk yang belum mulai (nilai kosong): `nama, username, percobaan, nilai_final_terbaik, status`. Setiap sel lewat `csvCell` (cegah formula), UTF-8 dengan BOM, `Cache-Control: private, no-store`, nama file `nilai-<judul>-<YYYY-MM-DD>.csv`. Tugas yang tidak ada dan tugas milik orang lain sama-sama dijawab 404.
 
 ### 8b. RPC penilaian (M4)
 
@@ -289,10 +301,15 @@ Server action di `src/features/interview/actions.ts`: `startSession`, `requestLi
   - Sesi pustaka: maksimal 3 per hari.
   - Hanya 1 sesi aktif dalam satu waktu.
   - `messages`: maksimal 30 per menit.
-- **Per institusi:** batas sesi Live bersamaan diatur di env (`LIVE_MAX_CONCURRENT`, default 10). Kalau terlewati, sesi baru langsung masuk Fallback.
+- **Per institusi:** batas sesi Live bersamaan diatur di env (`LIVE_MAX_CONCURRENT`, default 5, sesuai kuota free tier §3.1; `liveMaxConcurrent()` di `src/lib/env.ts`). Kalau terlewati, sesi baru langsung masuk Fallback.
 - **Implementasi:** hitungan diambil dari tabel di Postgres. Belum perlu Redis.
 
 ## 10. Observability
 
 - **Tabel `llm_calls`** menjadi sumber halaman pemantauan Admin (sesi per hari, % fallback, error provider).
+- **Pemakaian di `/admin` (US-A-04).** RPC `admin_usage(p_days)` (1–90, halaman memakai 14) mengagregasi per tanggal di Postgres; browser tidak menerima baris mentah. Fungsi `security invoker` (RLS "admin reads" tetap berlaku) dan menolak non-admin (`42501`). Tanggal = hari kalender **UTC** yang dihitung eksplisit (`at time zone 'UTC'`), sehingga tidak bergantung pada timezone koneksi (diuji pgTAP dengan Asia/Jakarta dan America/Los_Angeles). Per hari:
+  - **Sesi** = `sessions` menurut `started_at`; **mode hemat** = persentase sesi dengan `mode = 'fallback'` saat ini (sesi yang tidak pernah Live, atau pindah dari Live).
+  - **Panggilan per task** = baris `llm_calls` berstatus `ok`/`error`/`timeout`/`fallback`; `busy` dan `unconfigured` tidak dihitung karena tidak sampai ke provider.
+  - **Error per provider** = `error` + `fallback` (percobaan gagal di provider itu), **timeout** dihitung terpisah.
+  - Ditampilkan juga batas `LIVE_MAX_CONCURRENT` (nilai saja).
 - **Vercel logs** untuk error server. Pelaporan error client (rencananya route `/api/client-errors`, mudah diganti Sentry) **belum diimplementasikan**.
