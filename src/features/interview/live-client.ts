@@ -41,6 +41,7 @@ export class LiveConnection {
   private ws: WebSocket;
   private ready = false;
   private stall: ReturnType<typeof setTimeout> | undefined;
+  private replying = false;
 
   constructor(token: string, model: string, private h: LiveHandlers) {
     this.ws = new WebSocket(`${ENDPOINT}?access_token=${encodeURIComponent(token)}`);
@@ -59,9 +60,14 @@ export class LiveConnection {
       }
       const sc = msg.serverContent;
       if (!sc) return;
-      const replied = Boolean(sc.modelTurn || sc.outputTranscription || sc.turnComplete || sc.interrupted);
-      if (replied || sc.inputTranscription?.text) clearTimeout(this.stall);
-      if (sc.inputTranscription?.text && !replied) this.stall = setTimeout(h.onStall, STALL_MS);
+      // Only output the learner hears or reads counts as a reply; a modelTurn with just "thinking" does not.
+      const output = Boolean(sc.modelTurn?.parts?.some((p) => p.inlineData?.data) || sc.outputTranscription?.text);
+      const ended = Boolean(sc.turnComplete || sc.interrupted);
+      if (output) this.replying = true;
+      if (output || ended || sc.inputTranscription?.text) clearTimeout(this.stall);
+      // A late transcription chunk while the character is answering must not re-send the question.
+      if (sc.inputTranscription?.text && !this.replying && !ended) this.stall = setTimeout(h.onStall, STALL_MS);
+      if (ended) this.replying = false;
       for (const p of sc.modelTurn?.parts ?? []) if (p.inlineData?.data) h.onAudio(p.inlineData.data);
       if (sc.inputTranscription?.text) h.onInputText(sc.inputTranscription.text);
       if (sc.outputTranscription?.text) h.onOutputText(sc.outputTranscription.text);

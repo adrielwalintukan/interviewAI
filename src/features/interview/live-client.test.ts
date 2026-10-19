@@ -77,6 +77,33 @@ describe("LiveConnection stall watchdog", () => {
     expect(h.onAudio).toHaveBeenCalledWith("AAAA");
   });
 
+  it("still fires when Live only sends a modelTurn without audio (thinking), and only once", async () => {
+    const { h, ws } = connect();
+    await ws.emit({ serverContent: { inputTranscription: { text: "Halo." } } });
+    await ws.emit({ serverContent: { modelTurn: { parts: [{ text: "**Thinking**" }] } } });
+    vi.advanceTimersByTime(STALL_MS * 3);
+    expect(h.onStall).toHaveBeenCalledOnce();
+  });
+
+  it("does not fire for a late transcription chunk while the character is answering", async () => {
+    const { h, ws } = connect();
+    await ws.emit({ serverContent: { inputTranscription: { text: "Halo." } } });
+    await ws.emit({ serverContent: { modelTurn: { parts: [{ inlineData: { data: "AAAA" } }] } } });
+    await ws.emit({ serverContent: { inputTranscription: { text: " Nadia." } } });
+    vi.advanceTimersByTime(STALL_MS * 2);
+    expect(h.onStall).not.toHaveBeenCalled();
+  });
+
+  it("watches the next learner turn again after the character finishes", async () => {
+    const { h, ws } = connect();
+    await ws.emit({ serverContent: { inputTranscription: { text: "Halo." } } });
+    await ws.emit({ serverContent: { outputTranscription: { text: "Halo juga." } } });
+    await ws.emit({ serverContent: { turnComplete: true } });
+    await ws.emit({ serverContent: { inputTranscription: { text: "Boleh tanya?" } } });
+    vi.advanceTimersByTime(STALL_MS);
+    expect(h.onStall).toHaveBeenCalledOnce();
+  });
+
   it("does not fire after the connection is closed", async () => {
     const { conn, h, ws } = connect();
     await ws.emit({ serverContent: { inputTranscription: { text: "Halo." } } });
