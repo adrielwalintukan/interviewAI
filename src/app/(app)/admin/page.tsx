@@ -3,6 +3,7 @@ import { requireUser } from "@/features/auth/dal";
 import { updateUserAccess } from "@/features/admin/actions";
 import { USERNAME_EMAIL_DOMAIN } from "@/features/auth/identifier";
 import { ResetPasswordButton } from "@/features/auth/reset-password-button";
+import { liveMaxConcurrent } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -116,6 +117,97 @@ async function UserTable() {
   );
 }
 
+type UsageRow = {
+  day: string;
+  sessions: number;
+  fallback_sessions: number;
+  chat: number;
+  grader: number;
+  generator: number;
+  live: number;
+  tts: number;
+  router_errors: number;
+  router_timeouts: number;
+  gemini_errors: number;
+  gemini_timeouts: number;
+};
+
+const USAGE_DAYS = 14;
+const TASKS = [
+  ["chat", "Chat"],
+  ["grader", "Penilai"],
+  ["generator", "Generator"],
+  ["live", "Live"],
+  ["tts", "TTS"],
+] as const;
+
+/** US-A-04: aggregated per day in Postgres (admin_usage), never raw rows. Days are UTC, like the daily quota. */
+async function UsageTable() {
+  await requireUser({ roles: ["admin"] });
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_usage", { p_days: USAGE_DAYS });
+  const rows = (data ?? []) as UsageRow[];
+  const num = "py-2 pr-3 text-right tabular-nums";
+
+  return (
+    <>
+      <p className="mt-3 text-sm text-ink-2">
+        {USAGE_DAYS} hari terakhir (tanggal UTC). Batas sesi Live bersamaan: <span className="tabular-nums">{liveMaxConcurrent()}</span>; sesi berikutnya langsung memakai mode hemat.
+      </p>
+      {error ? (
+        <p role="alert" className="mt-4 border-l-2 border-accent pl-4 text-accent">
+          Data pemakaian gagal dimuat. Muat ulang halaman ini.
+        </p>
+      ) : (
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full min-w-[52rem] border-y border-rule text-left text-sm">
+            <thead className="font-mono text-label uppercase text-ink-2">
+              <tr className="border-b border-rule">
+                <th scope="col" className="py-2 pr-3 font-normal">Tanggal</th>
+                <th scope="col" className="py-2 pr-3 text-right font-normal">Sesi</th>
+                <th scope="col" className="py-2 pr-3 text-right font-normal">Mode hemat</th>
+                {TASKS.map(([k, label]) => (
+                  <th key={k} scope="col" className="py-2 pr-3 text-right font-normal">
+                    {label}
+                  </th>
+                ))}
+                <th scope="col" className="py-2 pr-3 text-right font-normal">
+                  9router <span className="normal-case">error / timeout</span>
+                </th>
+                <th scope="col" className="py-2 text-right font-normal">
+                  Gemini <span className="normal-case">error / timeout</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-rule">
+              {rows.map((r) => (
+                <tr key={r.day}>
+                  <th scope="row" className="py-2 pr-3 font-mono font-normal">
+                    {new Date(`${r.day}T00:00:00Z`).toLocaleDateString("id-ID", { day: "numeric", month: "short", timeZone: "UTC" })}
+                  </th>
+                  <td className={num}>{r.sessions}</td>
+                  <td className={num}>{r.sessions ? `${Math.round((r.fallback_sessions / r.sessions) * 100)}%` : "—"}</td>
+                  {TASKS.map(([k]) => (
+                    <td key={k} className={num}>
+                      {r[k]}
+                    </td>
+                  ))}
+                  <td className={`${num} ${r.router_errors + r.router_timeouts ? "text-accent" : ""}`}>
+                    {r.router_errors} / {r.router_timeouts}
+                  </td>
+                  <td className={`py-2 text-right tabular-nums ${r.gemini_errors + r.gemini_timeouts ? "text-accent" : ""}`}>
+                    {r.gemini_errors} / {r.gemini_timeouts}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function AdminPage() {
   return (
     <>
@@ -124,6 +216,15 @@ export default function AdminPage() {
       <Suspense fallback={<div className="mt-8 h-64 animate-pulse rounded-md bg-paper-2" />}>
         <UserTable />
       </Suspense>
+
+      <section aria-labelledby="pemakaian-h" className="mt-16">
+        <h2 id="pemakaian-h" className="font-mono text-label uppercase text-accent">
+          Pemakaian
+        </h2>
+        <Suspense fallback={<div className="mt-4 h-64 animate-pulse rounded-md bg-paper-2" />}>
+          <UsageTable />
+        </Suspense>
+      </section>
     </>
   );
 }
