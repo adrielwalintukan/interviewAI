@@ -38,15 +38,24 @@ async function Lobby({ searchParams }: { searchParams: PageProps<"/sesi/mulai">[
     kind = "assignment";
     const { data: a } = await supabase
       .from("assignments")
-      .select(`id, class_id, due_at, duration_min, max_attempts, v:scenario_versions(${BRIEF})`)
+      .select(`id, class_id, due_at, duration_min, max_attempts, classes!inner(archived_at), v:scenario_versions(${BRIEF})`)
       .eq("id", sp.tugas)
-      .maybeSingle<{ id: string; class_id: string; due_at: string | null; duration_min: number; max_attempts: number; v: Brief | null }>();
+      .maybeSingle<{
+        id: string;
+        class_id: string;
+        due_at: string | null;
+        duration_min: number;
+        max_attempts: number;
+        classes: { archived_at: string | null } | null;
+        v: Brief | null;
+      }>();
     if (!a?.v) notFound();
     const { count } = await supabase.from("sessions").select("id", { count: "exact", head: true }).eq("assignment_id", a.id).eq("user_id", user.id);
     brief = a.v;
     back = `/kelas/${a.class_id}`;
     meta = { minutes: a.duration_min, dueAt: a.due_at, attemptsLeft: a.max_attempts - (count ?? 0), max: a.max_attempts };
-    if (user.role !== "pelajar") disabledReason = "Hanya pelajar yang mengerjakan tugas. Gunakan “Uji coba” di editor skenario.";
+    if (a.classes?.archived_at) disabledReason = "Kelas ini sudah diarsipkan. Tugas tidak bisa dimulai.";
+    else if (user.role !== "pelajar") disabledReason = "Hanya pelajar yang mengerjakan tugas. Gunakan “Uji coba” di editor skenario.";
     else if (meta.attemptsLeft! <= 0) disabledReason = "Kesempatan untuk tugas ini sudah habis.";
     else if (isPast(a.due_at)) disabledReason = "Tenggat tugas ini sudah lewat.";
   } else if (isUuid(sp.versi) && (sp.jenis === "library" || sp.jenis === "preview")) {

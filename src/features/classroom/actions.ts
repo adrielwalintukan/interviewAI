@@ -8,6 +8,7 @@ import { requireUser } from "@/features/auth/dal";
 import { usernameToEmail } from "@/features/auth/identifier";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { checkClassCanAcceptAssignment } from "./archive";
 import { generateInitialPassword, parseStudentCsv } from "./bulk-students";
 import { toDueInstant } from "./due-date";
 
@@ -49,6 +50,35 @@ export async function regenerateJoinCode(form: FormData): Promise<void> {
   await supabase.rpc("regenerate_join_code", { p_class_id: classId }); // RPC enforces ownership
   revalidatePath(`/kelas/${classId}`);
 }
+
+export async function archiveClass(form: FormData): Promise<void> {
+  const user = await requireUser({ roles: ["pengajar"] });
+  const classId = z.uuid().parse(form.get("classId"));
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("classes")
+    .update({ archived_at: new Date().toISOString() })
+    .eq("id", classId)
+    .eq("owner_id", user.id);
+  if (error) throw new Error("Gagal mengarsipkan kelas.");
+  revalidatePath(`/kelas/${classId}`);
+  revalidatePath("/dashboard");
+}
+
+export async function unarchiveClass(form: FormData): Promise<void> {
+  const user = await requireUser({ roles: ["pengajar"] });
+  const classId = z.uuid().parse(form.get("classId"));
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("classes")
+    .update({ archived_at: null })
+    .eq("id", classId)
+    .eq("owner_id", user.id);
+  if (error) throw new Error("Gagal membuka arsip kelas.");
+  revalidatePath(`/kelas/${classId}`);
+  revalidatePath("/dashboard");
+}
+
 
 export type BulkResult = {
   error?: string;
@@ -147,6 +177,14 @@ export async function createAssignment(_: FormState, form: FormData): Promise<Fo
   if (dueAt && Date.parse(dueAt) < Date.now()) return { fieldErrors: { dueLocal: "Tenggat sudah lewat" } };
 
   const supabase = await createClient();
+  const { data: cls, error: clsError } = await supabase
+    .from("classes")
+    .select("archived_at")
+    .eq("id", classId)
+    .maybeSingle();
+  const check = checkClassCanAcceptAssignment(cls, clsError);
+  if (!check.ok) return { error: check.error };
+
   // RLS: owner of the class, and the version is theirs or in the public library.
   const { error } = await supabase.from("assignments").insert({
     class_id: classId,

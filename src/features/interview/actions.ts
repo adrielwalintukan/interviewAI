@@ -19,6 +19,7 @@ const START_ERRORS: Record<string, string> = {
   active_session_exists: "Kamu masih punya sesi yang berjalan. Selesaikan dulu.",
   no_attempts_left: "Kesempatan untuk tugas ini sudah habis.",
   past_due: "Tenggat tugas ini sudah lewat.",
+  class_archived: "Kelas sudah diarsipkan. Tugas tidak bisa dimulai.",
   daily_quota: "Kuota latihan hari ini sudah habis (3 sesi). Coba lagi besok.",
   not_allowed: "Kamu tidak punya akses ke skenario ini.",
 };
@@ -41,6 +42,19 @@ export async function startSession(_: FormState, form: FormData): Promise<FormSt
   const { kind, assignmentId, versionId } = parsed.data;
 
   const supabase = await createClient();
+  if (kind === "assignment") {
+    if (!assignmentId) return { error: "Permintaan tidak valid." };
+    const { data: asgn } = await supabase
+      .from("assignments")
+      .select("classes!inner(archived_at)")
+      .eq("id", assignmentId)
+      .maybeSingle();
+    const classData = asgn?.classes as unknown as { archived_at: string | null } | null;
+    if (classData?.archived_at) {
+      return { error: "Kelas sudah diarsipkan. Tugas tidak bisa dimulai." };
+    }
+  }
+
   const { data: id, error } = await supabase.rpc("start_session", {
     p_kind: kind,
     p_assignment_id: kind === "assignment" ? assignmentId : null,
