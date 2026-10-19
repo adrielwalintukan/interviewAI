@@ -60,6 +60,14 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
     phaseRef.current = p;
     setPhase(p);
   };
+  // Turns are saved strictly in order (grading reads them by server seq), and finish waits for them.
+  const saved = useRef<Promise<unknown>>(Promise.resolve());
+  const saveTurn = useCallback(
+    (speaker: "learner" | "character", text: string) => {
+      saved.current = saved.current.then(() => logTurn(sessionId, speaker, text)).catch(() => {});
+    },
+    [sessionId],
+  );
   const pushTurn = useCallback((t: Turn) => {
     turnCount.current += 1;
     setTurns((all) => [...all, t]);
@@ -85,6 +93,7 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
     teardownLive();
     hush();
     stopListening.current();
+    await saved.current;
     await endSession(sessionId); // redirects to the summary
   }, [sessionId, teardownLive, hush]);
 
@@ -142,12 +151,12 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
       const text = pending.current[speaker].trim();
       if (text) {
         pushTurn({ speaker, text });
-        void logTurn(sessionId, speaker, text);
+        saveTurn(speaker, text);
       }
     }
     pending.current = { learner: "", character: "" };
     setPartial({ learner: "", character: "" });
-  }, [sessionId, pushTurn]);
+  }, [pushTurn, saveTurn]);
 
   async function begin() {
     setPhaseBoth("connecting");
@@ -208,7 +217,7 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
         pending.current.learner = "";
         setPartial((p) => ({ ...p, learner: "" }));
         pushTurn({ speaker: "learner", text });
-        void logTurn(sessionId, "learner", text);
+        saveTurn("learner", text);
         live.current.sendText(text);
         setActivity("thinking");
       },
@@ -249,7 +258,7 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
     if (phase === "live" && live.current?.isOpen) {
       player.current?.stop();
       pushTurn({ speaker: "learner", text });
-      void logTurn(sessionId, "learner", text);
+      saveTurn("learner", text);
       live.current.sendText(text);
     } else if (phase === "fallback") {
       hush();

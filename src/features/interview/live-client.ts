@@ -42,6 +42,8 @@ export class LiveConnection {
   private ready = false;
   private stall: ReturnType<typeof setTimeout> | undefined;
   private replying = false;
+  /** The stall nudge was sent for this turn; never send a second one before the turn ends. */
+  private nudged = false;
 
   constructor(token: string, model: string, private h: LiveHandlers) {
     this.ws = new WebSocket(`${ENDPOINT}?access_token=${encodeURIComponent(token)}`);
@@ -66,8 +68,12 @@ export class LiveConnection {
       if (output) this.replying = true;
       if (output || ended || sc.inputTranscription?.text) clearTimeout(this.stall);
       // A late transcription chunk while the character is answering must not re-send the question.
-      if (sc.inputTranscription?.text && !this.replying && !ended) this.stall = setTimeout(h.onStall, STALL_MS);
-      if (ended) this.replying = false;
+      if (sc.inputTranscription?.text && !this.replying && !this.nudged && !ended)
+        this.stall = setTimeout(() => {
+          this.nudged = true;
+          h.onStall();
+        }, STALL_MS);
+      if (ended) this.replying = this.nudged = false;
       for (const p of sc.modelTurn?.parts ?? []) if (p.inlineData?.data) h.onAudio(p.inlineData.data);
       if (sc.inputTranscription?.text) h.onInputText(sc.inputTranscription.text);
       if (sc.outputTranscription?.text) h.onOutputText(sc.outputTranscription.text);

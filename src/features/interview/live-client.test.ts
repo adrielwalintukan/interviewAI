@@ -94,6 +94,20 @@ describe("LiveConnection stall watchdog", () => {
     expect(h.onStall).not.toHaveBeenCalled();
   });
 
+  it("nudges only once per turn, even when more transcription arrives after the nudge", async () => {
+    const { h, ws } = connect();
+    await ws.emit({ serverContent: { inputTranscription: { text: "Halo." } } });
+    vi.advanceTimersByTime(STALL_MS);
+    await ws.emit({ serverContent: { inputTranscription: { text: " Nadia?" } } });
+    vi.advanceTimersByTime(STALL_MS * 2);
+    expect(h.onStall).toHaveBeenCalledOnce();
+    await ws.emit({ serverContent: { outputTranscription: { text: "Halo." } } });
+    await ws.emit({ serverContent: { turnComplete: true } });
+    await ws.emit({ serverContent: { inputTranscription: { text: "Boleh tanya?" } } });
+    vi.advanceTimersByTime(STALL_MS);
+    expect(h.onStall).toHaveBeenCalledTimes(2);
+  });
+
   it("watches the next learner turn again after the character finishes", async () => {
     const { h, ws } = connect();
     await ws.emit({ serverContent: { inputTranscription: { text: "Halo." } } });
