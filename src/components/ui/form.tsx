@@ -10,11 +10,12 @@ export function SubmitButton({
   pending: pendingText,
   variant = "primary",
   className = "",
+  disabled,
   ...rest
 }: ComponentProps<"button"> & { pending?: string; variant?: ButtonVariant }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} aria-busy={pending} className={buttonClass(variant, className)} {...rest}>
+    <button type="submit" disabled={pending || disabled} aria-busy={pending} className={buttonClass(variant, className)} {...rest}>
       {pending ? (pendingText ?? "Memproses…") : children}
     </button>
   );

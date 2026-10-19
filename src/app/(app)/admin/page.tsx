@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { requireUser } from "@/features/auth/dal";
 import { updateUserAccess } from "@/features/admin/actions";
+import { DeleteStudentButton } from "@/features/admin/delete-student-button";
 import { USERNAME_EMAIL_DOMAIN } from "@/features/auth/identifier";
 import { ResetPasswordButton } from "@/features/auth/reset-password-button";
 import { liveMaxConcurrent } from "@/lib/env";
@@ -105,6 +106,7 @@ async function UserTable() {
                         <AccessButton user={u} role={u.role} status="disabled" label="Nonaktifkan" />
                       )}
                       <ResetPasswordButton userId={u.id} name={u.display_name} />
+                      {u.role === "pelajar" && <DeleteStudentButton userId={u.id} name={u.display_name} />}
                     </div>
                   )}
                 </td>
