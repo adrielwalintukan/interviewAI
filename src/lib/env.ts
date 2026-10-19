@@ -48,3 +48,5 @@ export const llmEnv = lazy(llmSchema);
 export const liveEnv = lazy(liveSchema);
 /** Gemini TTS: the character's voice in mode hemat. */
 export const ttsEnv = lazy(ttsSchema);
+/** Concurrent Live sessions per project before new sessions start in mode hemat (architecture §3.1, §9). */
+export const liveMaxConcurrent = () => Number(process.env.LIVE_MAX_CONCURRENT ?? 5);

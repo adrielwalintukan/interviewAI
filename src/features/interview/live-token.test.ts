@@ -13,6 +13,7 @@ vi.mock("@/lib/llm/gateway", () => ({ complete: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/llm/prompts/persona", () => ({ PERSONA_PROMPT_VERSION: "persona@test", buildPersonaPrompt: () => "persona" }));
 vi.mock("@/lib/env", () => ({
+  liveMaxConcurrent: () => 5,
   liveEnv: () => {
     if (!state.configured) throw new Error("env");
     return { GEMINI_API_KEY: "k", LIVE_MODEL: "live-model" };

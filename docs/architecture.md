@@ -298,10 +298,15 @@ Server action di `src/features/interview/actions.ts`: `startSession`, `requestLi
   - Sesi pustaka: maksimal 3 per hari.
   - Hanya 1 sesi aktif dalam satu waktu.
   - `messages`: maksimal 30 per menit.
-- **Per institusi:** batas sesi Live bersamaan diatur di env (`LIVE_MAX_CONCURRENT`, default 10). Kalau terlewati, sesi baru langsung masuk Fallback.
+- **Per institusi:** batas sesi Live bersamaan diatur di env (`LIVE_MAX_CONCURRENT`, default 5, sesuai kuota free tier §3.1; `liveMaxConcurrent()` di `src/lib/env.ts`). Kalau terlewati, sesi baru langsung masuk Fallback.
 - **Implementasi:** hitungan diambil dari tabel di Postgres. Belum perlu Redis.
 
 ## 10. Observability
 
 - **Tabel `llm_calls`** menjadi sumber halaman pemantauan Admin (sesi per hari, % fallback, error provider).
+- **Pemakaian di `/admin` (US-A-04).** RPC `admin_usage(p_days)` (1–90, halaman memakai 14) mengagregasi per tanggal di Postgres; browser tidak menerima baris mentah. Fungsi `security invoker` (RLS "admin reads" tetap berlaku) dan menolak non-admin (`42501`). Tanggal = hari kalender **UTC** yang dihitung eksplisit (`at time zone 'UTC'`), sehingga tidak bergantung pada timezone koneksi (diuji pgTAP dengan Asia/Jakarta dan America/Los_Angeles). Per hari:
+  - **Sesi** = `sessions` menurut `started_at`; **mode hemat** = persentase sesi dengan `mode = 'fallback'` saat ini (sesi yang tidak pernah Live, atau pindah dari Live).
+  - **Panggilan per task** = baris `llm_calls` berstatus `ok`/`error`/`timeout`/`fallback`; `busy` dan `unconfigured` tidak dihitung karena tidak sampai ke provider.
+  - **Error per provider** = `error` + `fallback` (percobaan gagal di provider itu), **timeout** dihitung terpisah.
+  - Ditampilkan juga batas `LIVE_MAX_CONCURRENT` (nilai saja).
 - **Vercel logs** untuk error server. Pelaporan error client (rencananya route `/api/client-errors`, mudah diganti Sentry) **belum diimplementasikan**.
