@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { requireUser } from "@/features/auth/dal";
 import { ttsEnv } from "@/lib/env";
+import { isTimeoutError, logLlmCall } from "@/lib/llm/log";
 import { loadOwnActiveSession } from "./context";
 
 const GEMINI = "https://generativelanguage.googleapis.com";
@@ -21,11 +22,21 @@ export async function speakLastReply(sessionId: string): Promise<{ audio: string
   if (!ctx) return { audio: null };
 
   // Each reply is claimed once in the DB, so replaying this action can't burn the TTS quota.
+  // Nothing to speak (already spoken / no reply) is not logged: no request was made.
   const { data: text } = await ctx.supabase.rpc("claim_tts", { p_session_id: sessionId });
   if (typeof text !== "string" || !text) return { audio: null };
 
+  let env: ReturnType<typeof ttsEnv>;
   try {
-    const env = ttsEnv();
+    env = ttsEnv();
+  } catch {
+    await logLlmCall({ task: "tts", provider: "gemini", model: "", latencyMs: 0, status: "unconfigured", sessionId });
+    return { audio: null };
+  }
+  const started = Date.now();
+  const log = (status: "ok" | "error" | "timeout") =>
+    logLlmCall({ task: "tts", provider: "gemini", model: env.TTS_MODEL, latencyMs: Date.now() - started, status, sessionId });
+  try {
     const res = await fetch(`${GEMINI}/v1beta/models/${env.TTS_MODEL}:generateContent`, {
       method: "POST",
       headers: { "x-goog-api-key": env.GEMINI_API_KEY, "Content-Type": "application/json" },
@@ -38,10 +49,16 @@ export async function speakLastReply(sessionId: string): Promise<{ audio: string
       }),
       signal: AbortSignal.timeout(30_000),
     });
-    if (!res.ok) return { audio: null };
+    if (!res.ok) {
+      await log("error");
+      return { audio: null };
+    }
     const body = (await res.json()) as { candidates?: { content?: { parts?: { inlineData?: { data?: string } }[] } }[] };
-    return { audio: body.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data ?? null };
-  } catch {
+    const audio = body.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data ?? null;
+    await log(audio ? "ok" : "error");
+    return { audio };
+  } catch (err) {
+    await log(isTimeoutError(err) ? "timeout" : "error");
     return { audio: null };
   }
 }
