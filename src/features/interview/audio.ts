@@ -37,9 +37,9 @@ export async function startMic(onChunk: (pcm: ArrayBuffer) => void): Promise<Mic
   analyser.fftSize = 512;
   const scratch = new Float32Array(analyser.fftSize);
   let muted = false;
-  node.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
-    if (!muted) onChunk(e.data);
-  };
+  // Keep streaming while muted: the disabled track yields silence, which lets Live's VAD close the
+  // learner's turn. Dropping chunks mid-sentence leaves the turn open and the character never answers.
+  node.port.onmessage = (e: MessageEvent<ArrayBuffer>) => onChunk(e.data);
   source.connect(analyser);
   source.connect(node);
   return {
