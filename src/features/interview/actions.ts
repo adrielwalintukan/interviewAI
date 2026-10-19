@@ -6,7 +6,7 @@ import { z } from "zod";
 import type { FormState } from "@/features/auth/actions";
 import { requireUser } from "@/features/auth/dal";
 import { gradeSession } from "@/features/grading/grade";
-import { liveEnv } from "@/lib/env";
+import { liveEnv, liveMaxConcurrent } from "@/lib/env";
 import { complete } from "@/lib/llm/gateway";
 import { isTimeoutError, logLlmCall } from "@/lib/llm/log";
 import { PERSONA_PROMPT_VERSION, buildPersonaPrompt } from "@/lib/llm/prompts/persona";
@@ -64,7 +64,7 @@ export type LiveGrant =
   | { mode: "live"; token: string; model: string }
   | { mode: "fallback"; reason: "busy" | "unavailable" | "closed" };
 
-const MAX_LIVE = Number(process.env.LIVE_MAX_CONCURRENT ?? 5);
+const MAX_LIVE = liveMaxConcurrent();
 const GEMINI = "https://generativelanguage.googleapis.com";
 
 /**

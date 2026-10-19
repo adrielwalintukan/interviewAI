@@ -304,4 +304,9 @@ Server action di `src/features/interview/actions.ts`: `startSession`, `requestLi
 ## 10. Observability
 
 - **Tabel `llm_calls`** menjadi sumber halaman pemantauan Admin (sesi per hari, % fallback, error provider).
+- **Pemakaian di `/admin` (US-A-04).** RPC `admin_usage(p_days)` (1–90, halaman memakai 14) mengagregasi per tanggal di Postgres; browser tidak menerima baris mentah. Fungsi `security invoker` (RLS "admin reads" tetap berlaku) dan menolak non-admin (`42501`). Tanggal mengikuti jam database (UTC), sama dengan batas kuota harian pustaka. Per hari:
+  - **Sesi** = `sessions` menurut `started_at`; **mode hemat** = persentase sesi dengan `mode = 'fallback'` saat ini (sesi yang tidak pernah Live, atau pindah dari Live).
+  - **Panggilan per task** = baris `llm_calls` berstatus `ok`/`error`/`timeout`/`fallback`; `busy` dan `unconfigured` tidak dihitung karena tidak sampai ke provider.
+  - **Error per provider** = `error` + `fallback` (percobaan gagal di provider itu), **timeout** dihitung terpisah.
+  - Ditampilkan juga batas `LIVE_MAX_CONCURRENT` (nilai saja).
 - **Vercel logs** untuk error server. Pelaporan error client (rencananya route `/api/client-errors`, mudah diganti Sentry) **belum diimplementasikan**.
