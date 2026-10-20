@@ -18,6 +18,7 @@ const NAV: Record<keyof typeof ROLE_LABEL, NavItem[]> = {
   ],
   admin: [
     { href: "/admin", label: "Kelola akun", match: ["/admin"] },
+    { href: "/karakter", label: "Karakter", match: ["/karakter"] },
     { href: "/pustaka", label: "Pustaka", match: ["/pustaka"] },
   ],
 };

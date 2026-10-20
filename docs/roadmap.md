@@ -9,7 +9,7 @@ Setiap milestone berakhir dengan sesuatu yang bisa di-demo dan di-deploy. Story 
 | **M2 — Skenario** | Editor bertahap, generator AI, 6 karakter preset (potret CSS; VRM menyusul sebelum M3), terbit/versi, tugas, pustaka | US-G-03/05/06/10 | Skenario laundry dibuat < 10 menit dan diberikan sebagai tugas |
 | **M3 — Ruang Wawancara** ◐ (kecuali VRM) | Panggung + transisi, avatar VRM (idle/kedip/lip-sync) — *menunggu aset, sementara potret + cincin level suara*, mode Fallback dulu (lebih mudah dites), lalu mode Live + ephemeral token + perpindahan otomatis, transkrip tersimpan per giliran, timer & percobaan | US-P-03..07, US-G-04 | Wawancara suara 10 menit di Chrome desktop & Android; fallback terpicu saat key Live dimatikan |
 | **M4 — Penilaian & Laporan** ◐ (grader, laporan pelajar, review & override, dashboard kelas, ekspor CSV selesai; tersisa prompt eval) | Grader + skema + hitung nilai, laporan pelajar, review & override Pengajar, dashboard kelas, ekspor CSV, prompt eval | US-P-08..10, US-G-07..09 | Laporan dengan stabilo fakta; Pengajar override; CSV nilai |
-| **M5 — Polish & Pilot** ◐ (pemantauan pemakaian, hapus data pelajar, dan job retensi selesai) | Audit mobile & a11y, reduced motion, performa (budget), 5–8 karakter final, 3–5 skenario contoh, halaman Admin (kuota, hapus data), kebijakan privasi | US-A-02..04 | Pilot dengan 1 kelas nyata |
+| **M5 — Polish & Pilot** ◐ (pemantauan pemakaian, hapus data pelajar, job retensi, dan kelola karakter selesai) | Audit mobile & a11y, reduced motion, performa (budget), 5–8 karakter final, 3–5 skenario contoh, halaman Admin (kuota, hapus data), kebijakan privasi | US-A-02..04 | Pilot dengan 1 kelas nyata |
 
 Spike yang sebaiknya dikerjakan **sebelum** M3, karena hasilnya menentukan arsitektur:
 

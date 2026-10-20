@@ -28,7 +28,7 @@ export function Field({
   hint,
   ...input
 }: ComponentProps<"input"> & { label: string; name: string; error?: string; hint?: ReactNode }) {
-  const id = `f-${name}`;
+  const id = input.id ?? `f-${name}`;
   const describedBy = [error && `${id}-err`, hint && `${id}-hint`].filter(Boolean).join(" ") || undefined;
   return (
     <div className="flex flex-col gap-1.5">
