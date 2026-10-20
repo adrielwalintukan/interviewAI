@@ -118,6 +118,20 @@ gitGraph
 | Ukuran per VRM | ≤ 8 MB, tekstur ≤ 1024² |
 | FPS avatar | ≥ 50 desktop, ≥ 30 mobile menengah |
 
+**Pengukuran.** `npm run build` + `npm start`, lalu Lighthouse mode mobile dengan profil bawaan (simulasi 1,6 Mbps, RTT 150 ms, CPU 4×), cache dingin, median 3 run. Halaman yang butuh login diukur di Chrome yang sudah login (`--port`, `--disable-storage-reset`, cache dikosongkan sebelum tiap run).
+
+Hasil audit 2026-10-21 (#25):
+
+| Halaman | LCP | JS awal (gzip) | CLS | TBT |
+|---|---|---|---|---|
+| `/masuk` | 2,88 s ❌ | 142 KB ✅ | 0 | 70–290 ms |
+| `/dashboard` | 3,32 s ❌ | 154 KB ✅ | ≤ 0,06 | 100–510 ms |
+| `/kelas/[id]` | 3,36 s ❌ | 160 KB ✅ | 0,093 | 140–350 ms |
+| `/pustaka` | 3,23 s ❌ | 153 KB ✅ | ≤ 0,054 | 210–530 ms |
+| `/sesi/[id]/selesai` | 3,21 s ❌ | 156 KB ✅ | ≤ 0,098 | 120–190 ms |
+
+LCP kunjungan pertama melewati budget di semua halaman; kunjungan berikutnya (cache hangat) 0,7–1,2 s. Penyebabnya bukan satu komponen: HTML, CSS, JS framework (~142 KB), dan 3 font yang di-preload (~133 KB) berebut bandwidth simulasi. Perbaikan dan penetapan arti "4G" dilacak di #45.
+
 ## 8. Definition of Done
 
 - [ ] Acceptance criteria di user story terpenuhi.
