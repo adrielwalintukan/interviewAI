@@ -194,7 +194,7 @@ erDiagram
 | `profiles` | `id` (= auth.users.id), `role` (`admin`/`pengajar`/`pelajar`), `status` (`active`/`pending`/`disabled`), `display_name`, `username`, `must_change_password`, `mic_consent_at` |
 | `classes` | `id`, `owner_id`, `name`, `join_code` (unique), `archived_at` |
 | `class_members` | `class_id`, `user_id`, `joined_at`. PK gabungan |
-| `characters` | `id` (slug), `name`, `occupation`, `age_range`, `gender`, `live_voice` (suara melekat di karakter), `portrait_hue`, `vrm_path` (M3), `active`, `sort`. Seed 6 karakter |
+| `characters` | `id` (slug), `name`, `occupation`, `age_range`, `gender`, `live_voice` (suara melekat di karakter; salah satu dari 30 suara prebuilt Gemini, daftar terverifikasi di `features/admin/characters.ts`), `portrait_hue`, `vrm_path` (M3), `active`, `sort`. Seed 6 karakter. Dikelola Admin di `/admin` (US-A-03); tidak ada hapus permanen |
 | `scenarios` | `id`, `author_id`, `title`, `draft` (jsonb, autosave editor, hanya penulis), `is_public` (hanya bila sudah terbit), `current_version_id` |
 | `scenario_versions` | **Brief** yang boleh dilihat pelajar: `id`, `scenario_id`, `version`, `title`, `language`, `level`, `learner_role`, `objective`, `client_name`, `client_occupation`, `character_id`, `published_at`. Immutable; dibuat hanya lewat RPC `publish_scenario()` |
 | `scenario_version_secrets` | **Rahasia**: `version_id`, `persona`, `facts` (F1..Fn), `rubric` (jsonb, divalidasi Zod `contentSchema`). Hanya penulis & admin; server membacanya untuk prompt/grader |
@@ -263,6 +263,7 @@ Mutasi memakai **Server Actions** (tidak ada folder `app/api`). Setiap action me
 | `createClass`, `joinClass`, `bulkCreateStudents`, `createAssignment`, … | `features/classroom/actions.ts` | Kelas, anggota, tugas | sesuai peran |
 | `resetPassword`, `updateUserAccess` | `features/auth`, `features/admin` | Reset password, akses pengguna | admin/pengajar kelas |
 | `deleteStudent` | `features/admin/actions.ts` | Hapus pelajar permanen (US-A-02) lewat RPC `delete_student` | admin |
+| `saveCharacter`, `setCharacterActive` | `features/admin/actions.ts` | Tambah/ubah karakter preset dan aktif/nonaktif (US-A-03); Zod `characterSchema`, tulis dengan service role karena `characters` tidak punya policy tulis | admin |
 
 **Penilaian (M4, `features/grading/`).** `gradeSession` berjalan sebagai service role setelah kepemilikan dicek: `claim_grading` → baca transkrip + rahasia skenario → `runGrader` (prompt `grader@1`, gateway task `grader`, `extractJson`, validasi Zod + validator bukti, hingga 3 percobaan dengan backoff 0/2/6 dtk, umpan balik saat JSON tidak valid) → `finish_grading`. Nilai dihitung di kode (`computeScore`). Halaman `/sesi/[id]/selesai` juga memicu `gradeSession` (lewat `after()`) bila pemiliknya membuka sesi yang sudah berakhir tapi belum dinilai, mis. sesi yang ditutup timer, lalu memuat ulang sendiri tiap 5 dtk selama diproses. Pengajar meninjau dari tombol **Hasil** per tugas di halaman kelas → `/kelas/[id]/tugas/[tugasId]` (dashboard tugas, US-G-08) → halaman ringkasan sesi (bagian "Tinjau nilai"). Notifikasi ke pelajar (US-G-07) bersifat in-app: dashboard pelajar menampilkan "Nilai baru dari pengajar" untuk evaluasi dengan `reviewed_at` terisi dan `review_seen_at` kosong; membuka ringkasan sesi memanggil `mark_review_seen`.
 

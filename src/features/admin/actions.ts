@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireUser } from "@/features/auth/dal";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { characterSchema } from "./characters";
 
 const input = z.object({
   userId: z.uuid(),
@@ -55,4 +56,32 @@ export async function deleteStudent(_: DeleteResult, form: FormData): Promise<De
   if (error) return { error: DELETE_ERRORS[error.message] ?? "Gagal menghapus data pelajar." };
   revalidatePath("/admin");
   return { done: true };
+}
+
+export type CharacterResult = { ok?: true; error?: string } | undefined;
+
+/** US-A-03: add (mode=new) or edit a preset character. Admin-only; written with the service role (no write policy). */
+export async function saveCharacter(_: CharacterResult, form: FormData): Promise<CharacterResult> {
+  await requireUser({ roles: ["admin"] });
+  const parsed = characterSchema.safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Data karakter tidak valid." };
+
+  const db = createAdminClient();
+  const { id, ...fields } = parsed.data;
+  const { error } =
+    form.get("mode") === "new" ? await db.from("characters").insert(parsed.data) : await db.from("characters").update(fields).eq("id", id);
+  if (error) return { error: error.code === "23505" ? "ID karakter sudah dipakai." : "Gagal menyimpan karakter." };
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+const activeInput = z.object({ id: characterSchema.shape.id, active: z.enum(["true", "false"]) });
+
+/** US-A-03: deactivate instead of delete, so scenarios that use the character keep working. */
+export async function setCharacterActive(form: FormData): Promise<void> {
+  await requireUser({ roles: ["admin"] });
+  const parsed = activeInput.safeParse(Object.fromEntries(form));
+  if (!parsed.success) return;
+  await createAdminClient().from("characters").update({ active: parsed.data.active === "true" }).eq("id", parsed.data.id);
+  revalidatePath("/admin");
 }
