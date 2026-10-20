@@ -71,7 +71,7 @@ export async function saveCharacter(_: CharacterResult, form: FormData): Promise
   const { error } =
     form.get("mode") === "new" ? await db.from("characters").insert(parsed.data) : await db.from("characters").update(fields).eq("id", id);
   if (error) return { error: error.code === "23505" ? "ID karakter sudah dipakai." : "Gagal menyimpan karakter." };
-  revalidatePath("/admin");
+  revalidatePath("/karakter");
   return { ok: true };
 }
 
@@ -83,5 +83,5 @@ export async function setCharacterActive(form: FormData): Promise<void> {
   const parsed = activeInput.safeParse(Object.fromEntries(form));
   if (!parsed.success) return;
   await createAdminClient().from("characters").update({ active: parsed.data.active === "true" }).eq("id", parsed.data.id);
-  revalidatePath("/admin");
+  revalidatePath("/karakter");
 }

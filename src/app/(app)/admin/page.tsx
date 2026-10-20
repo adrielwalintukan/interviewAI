@@ -1,12 +1,9 @@
 import { Suspense } from "react";
 import { requireUser } from "@/features/auth/dal";
-import { setCharacterActive, updateUserAccess } from "@/features/admin/actions";
-import { CharacterForm } from "@/features/admin/character-form";
-import { GENDER_LABEL, type CharacterRow } from "@/features/admin/characters";
+import { updateUserAccess } from "@/features/admin/actions";
 import { DeleteStudentButton } from "@/features/admin/delete-student-button";
 import { USERNAME_EMAIL_DOMAIN } from "@/features/auth/identifier";
 import { ResetPasswordButton } from "@/features/auth/reset-password-button";
-import { CharacterPortrait } from "@/features/scenario/character-portrait";
 import { liveMaxConcurrent } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -213,66 +210,6 @@ async function UsageTable() {
   );
 }
 
-/** US-A-03: every preset character, inactive ones included (RLS lets admins read them). No hard delete. */
-async function CharacterList() {
-  await requireUser({ roles: ["admin"] });
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("characters")
-    .select("id, name, occupation, age_range, gender, live_voice, portrait_hue, sort, active")
-    .order("sort")
-    .returns<CharacterRow[]>();
-  if (error) {
-    return (
-      <p role="alert" className="mt-4 text-sm text-accent">
-        Daftar karakter gagal dimuat.
-      </p>
-    );
-  }
-
-  return (
-    <>
-      <ul className="mt-4 divide-y divide-rule border-y border-rule">
-        {(data ?? []).map((c) => (
-          <li key={c.id} className="py-4">
-            <div className="flex flex-wrap items-center gap-4">
-              <CharacterPortrait name={c.name} hue={c.portrait_hue} size="sm" />
-              <div className="min-w-0 flex-1">
-                <p className="font-medium">
-                  {c.name} <span className="font-mono text-sm text-ink-2">{c.id}</span>
-                </p>
-                <p className="text-sm text-ink-2">
-                  {c.occupation} · {c.age_range} · {GENDER_LABEL[c.gender]} · suara {c.live_voice}
-                </p>
-              </div>
-              <span className={`text-sm ${c.active ? "text-moss" : "text-accent"}`}>{c.active ? "Aktif" : "Nonaktif"}</span>
-              <form action={setCharacterActive}>
-                <input type="hidden" name="id" value={c.id} />
-                <input type="hidden" name="active" value={String(!c.active)} />
-                <button type="submit" className="relative min-h-11 rounded-sm border border-rule px-3 text-sm hover:border-ink">
-                  {c.active ? "Nonaktifkan" : "Aktifkan"}
-                  <span className="sr-only"> {c.name}</span>
-                </button>
-              </form>
-            </div>
-            <details className="mt-2">
-              <summary className="relative inline-flex min-h-11 cursor-pointer items-center text-sm text-ink-2 hover:text-ink">
-                Ubah<span className="sr-only"> {c.name}</span>
-              </summary>
-              <CharacterForm character={c} />
-            </details>
-          </li>
-        ))}
-      </ul>
-      <details className="mt-6">
-        <summary className="inline-flex min-h-11 cursor-pointer items-center font-medium hover:text-accent">+ Tambah karakter</summary>
-        <CharacterForm />
-      </details>
-      <p className="mt-4 text-sm text-ink-2">Karakter nonaktif tidak muncul di editor skenario. Skenario yang sudah memakainya tetap bisa dijalankan.</p>
-    </>
-  );
-}
-
 export default function AdminPage() {
   return (
     <>
@@ -288,15 +225,6 @@ export default function AdminPage() {
         </h2>
         <Suspense fallback={<div className="mt-4 h-64 animate-pulse rounded-md bg-paper-2" />}>
           <UsageTable />
-        </Suspense>
-      </section>
-
-      <section aria-labelledby="karakter-h" className="mt-16">
-        <h2 id="karakter-h" className="font-mono text-label uppercase text-accent">
-          Karakter
-        </h2>
-        <Suspense fallback={<div className="mt-4 h-64 animate-pulse rounded-md bg-paper-2" />}>
-          <CharacterList />
         </Suspense>
       </section>
     </>

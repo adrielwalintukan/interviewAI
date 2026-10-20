@@ -194,7 +194,7 @@ erDiagram
 | `profiles` | `id` (= auth.users.id), `role` (`admin`/`pengajar`/`pelajar`), `status` (`active`/`pending`/`disabled`), `display_name`, `username`, `must_change_password`, `mic_consent_at` |
 | `classes` | `id`, `owner_id`, `name`, `join_code` (unique), `archived_at` |
 | `class_members` | `class_id`, `user_id`, `joined_at`. PK gabungan |
-| `characters` | `id` (slug), `name`, `occupation`, `age_range`, `gender`, `live_voice` (suara melekat di karakter; salah satu dari 30 suara prebuilt Gemini, daftar terverifikasi di `features/admin/characters.ts`), `portrait_hue`, `vrm_path` (M3), `active`, `sort`. Seed 6 karakter. Dikelola Admin di `/admin` (US-A-03); tidak ada hapus permanen |
+| `characters` | `id` (slug), `name`, `occupation`, `age_range`, `gender`, `live_voice` (suara melekat di karakter; salah satu dari 30 suara prebuilt Gemini, daftar terverifikasi di `features/admin/characters.ts`), `portrait_hue`, `vrm_path` (M3), `active`, `sort`. Seed 6 karakter. Dikelola Admin di halaman `/karakter` (menu "Karakter", US-A-03); tidak ada hapus permanen |
 | `scenarios` | `id`, `author_id`, `title`, `draft` (jsonb, autosave editor, hanya penulis), `is_public` (hanya bila sudah terbit), `current_version_id` |
 | `scenario_versions` | **Brief** yang boleh dilihat pelajar: `id`, `scenario_id`, `version`, `title`, `language`, `level`, `learner_role`, `objective`, `client_name`, `client_occupation`, `character_id`, `published_at`. Immutable; dibuat hanya lewat RPC `publish_scenario()` |
 | `scenario_version_secrets` | **Rahasia**: `version_id`, `persona`, `facts` (F1..Fn), `rubric` (jsonb, divalidasi Zod `contentSchema`). Hanya penulis & admin; server membacanya untuk prompt/grader |

@@ -70,7 +70,7 @@ describe("saveCharacter", () => {
     expect(await saveCharacter(undefined, form({ mode: "new", ...CHARACTER }))).toEqual({ ok: true });
     expect(requireUser).toHaveBeenCalledWith({ roles: ["admin"] });
     expect(writes).toEqual([{ op: "insert", row: { ...CHARACTER, portrait_hue: 40, sort: 7 } }]);
-    expect(revalidatePath).toHaveBeenCalledWith("/admin");
+    expect(revalidatePath).toHaveBeenCalledWith("/karakter");
   });
 
   it("edits by id without changing the id", async () => {
@@ -101,6 +101,7 @@ describe("setCharacterActive", () => {
     await setCharacterActive(form({ id: "wulan", active: "false" }));
     expect(requireUser).toHaveBeenCalledWith({ roles: ["admin"] });
     expect(writes).toEqual([{ op: "update", row: { active: false }, id: "wulan" }]);
+    expect(revalidatePath).toHaveBeenCalledWith("/karakter");
   });
 
   it("ignores malformed input", async () => {
