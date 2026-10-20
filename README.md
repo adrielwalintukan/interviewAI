@@ -59,7 +59,7 @@ npm run eval
 
 ## Setup Supabase (sekali)
 
-1. Jalankan file di `supabase/migrations/` **berurutan** di SQL Editor Supabase. Tunggu job CI `Database pgTAP & RLS Tests` hijau dulu.
+1. Jalankan file di `supabase/migrations/` **berurutan** di SQL Editor Supabase. Tunggu job CI `Database pgTAP & RLS Tests` hijau dulu. Migrasi `20261026000000_retention_job.sql` mengaktifkan extension `pg_cron` dan menjadwalkan job retensi bulanan `monthly-retention`. Cek di **Integrations → Cron** atau lewat `select * from cron.job;`.
 2. **Authentication → Sign In / Providers → Email**: matikan **Confirm email** (keputusan M1). Email bawaan Supabase hanya terkirim ke anggota tim project.
 3. **Authentication → URL Configuration**: isi Site URL (mis. `http://localhost:3000` / domain Vercel) dan Redirect URL `…/auth/callback`.
 4. **Admin pertama**: daftar lewat `/daftar`, lalu jalankan di SQL Editor (ganti emailnya):

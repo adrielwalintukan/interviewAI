@@ -150,7 +150,7 @@ Aturan:
   - Status: `ok`; `timeout`; `fallback` = gagal dengan error yang boleh fallback dan provider berikutnya dicoba; `error` = gagal tanpa provider lain untuk dicoba. Dua status untuk permintaan Live/TTS yang **tidak sampai ke provider** (latensi 0, tidak memakai kuota): `busy` = slot Live penuh (`claim_live_slot` sukses mengembalikan `false`, pelajar langsung ke mode Fallback; bila RPC-nya error, dicatat `error`, bukan `busy`); `unconfigured` = env Live/TTS belum diisi (model kosong).
   - Definisi `timeout` ada di satu tempat (`isTimeoutError`, `src/lib/llm/log.ts`): `APIConnectionTimeoutError` dari OpenAI SDK, atau `fetch` yang dibatalkan `AbortSignal.timeout()` (`DOMException` `TimeoutError`, saat menunggu header maupun body). Kegagalan koneksi lain (ditolak, DNS) bukan timeout: dicatat `fallback` atau `error`.
   - **Batas cakupan:** setiap percobaan ke provider, ditambah `busy` dan `unconfigured` di atas. Yang **tidak** dicatat: tidak ada balasan baru untuk TTS (`claim_tts` kosong, misalnya balasan sudah pernah diucapkan), karena tidak ada permintaan suara sama sekali.
-  - **Retensi:** baris dengan `session_id` ikut terhapus bersama sesinya. Baris tanpa sesi (task `generator`) disimpan **1 tahun**, lalu dihapus `purge_llm_calls()` (security definer, hanya service role). Fungsi ini dipanggil job pembersihan bulanan (#15).
+  - **Retensi:** baris dengan `session_id` ikut terhapus bersama sesinya. Baris tanpa sesi (task `generator`) disimpan **1 tahun**, lalu dihapus `purge_llm_calls()` (security definer, hanya service role). Fungsi ini dipanggil job pembersihan bulanan `monthly-retention` (lihat §8, "Retensi data").
   - Penulisan log ditunggu paling lama 2 dtk dan kegagalannya ditelan: log tidak boleh memutus atau mengubah panggilan yang dicatatnya.
 
 ## 5. Avatar & lip-sync
@@ -204,7 +204,7 @@ erDiagram
 | `messages` | PK `(session_id, seq)`, `speaker` (`learner`/`character`), `text` (≤ 2000), `created_at`, `spoken_at` (jawaban karakter sudah dibacakan TTS mode hemat). Ditulis hanya lewat `append_message()` / `claim_tts()` |
 | `evaluations` | `session_id`, `ai_result` (jsonb), `ai_score`, `final_score`, `override` (jsonb), `reviewer_id`, `comment`, `reviewed_at`, `review_seen_at`, `grader_model`, `prompt_version` |
 | `llm_calls` | `id`, `task`, `provider`, `model`, `latency_ms`, `status`, `tokens_in/out`, `session_id?` (cascade), `created_at` (index) |
-| `audit_log` | `id`, `actor_id` (set null), `action` (`delete_student`), `target` (id yang dihapus, **bukan** nama/username/email), `created_at`. Ditulis hanya lewat RPC `delete_student` |
+| `audit_log` | `id`, `actor_id` (set null), `action` (`delete_student` / `purge_archived_sessions`), `target` (id yang dihapus, atau jumlah sesi untuk retensi; **bukan** nama/username/email), `created_at`. Ditulis hanya lewat RPC `delete_student` dan `purge_archived_class_sessions` |
 
 Nilai terbaik per tugas tidak disimpan sebagai kolom. Nilai ini dihitung lewat view `assignment_scores` (MAX dari `final_score`, yang diisi `finish_grading` saat dinilai dan sama dengan `ai_score` sampai pengajar meninjau). Lihat §8b.
 
@@ -271,6 +271,13 @@ Mutasi memakai **Server Actions** (tidak ada folder `app/api`). Setiap action me
 **Ekspor nilai (US-G-09).** Route handler `GET /kelas/[id]/tugas/[tugasId]/nilai-csv` memakai loader yang sama dengan dashboard tugas (`features/grading/assignment-results.ts`, otorisasi pemilik kelas/admin, nilai dari `assignment_scores`). Isinya satu baris per pelajar kelas, termasuk yang belum mulai (nilai kosong): `nama, username, percobaan, nilai_final_terbaik, status`. Setiap sel lewat `csvCell` (cegah formula), UTF-8 dengan BOM, `Cache-Control: private, no-store`, nama file `nilai-<judul>-<YYYY-MM-DD>.csv`. Tugas yang tidak ada dan tugas milik orang lain sama-sama dijawab 404.
 
 **Hapus data pelajar (US-A-02).** Di tabel Akun `/admin`, baris pelajar punya tombol **Hapus data**. Tombol ini membuka dialog yang meminta nama tampilan pelajar diketik ulang. `deleteStudent` (admin, Zod) memanggil RPC `delete_student(p_user_id, p_confirm)` sebagai pemanggil. Fungsi `security definer` itu menolak non-admin (`42501`), diri sendiri, akun yang bukan pelajar, serta konfirmasi yang tidak cocok (`22023`). Setelah itu ia menghapus baris `auth.users` dan menulis `audit_log` dalam **satu transaksi**, sehingga tidak ada penghapusan tanpa catatan. `profiles` dan semua turunannya ikut terhapus cascade: `class_members`, `sessions` → `messages`, `evaluations`, `llm_calls`. Tes pgTAP juga memastikan setiap FK di skema `public` ke `auth.users`/`profiles`/`sessions` bersifat cascade atau set null, termasuk tabel yang ditambahkan nanti. Pengajar tidak bisa dihapus lewat fitur ini, karena kelas dan skenarionya akan ikut terhapus.
+
+**Retensi data (#15, `security-privacy.md §3`).** Job **pg_cron** (Supabase Cron) bernama `monthly-retention` berjalan pukul 03.00 UTC setiap tanggal 1 (`0 3 1 * *`), dibuat di migrasi `20261026000000_retention_job.sql`. Ia memanggil dua fungsi `security definer` (hanya service role / pemilik):
+
+- `purge_archived_class_sessions()`: menghapus sesi tugas di kelas dengan `archived_at` lebih dari 1 tahun lalu. Pesan, evaluasi, dan `llm_calls` sesi ikut cascade; kelas, anggota, dan tugasnya tetap. Setiap run dicatat di `audit_log` (`purge_archived_sessions`, `target` = jumlah sesi, `actor_id` null).
+- `purge_llm_calls()`: menghapus `llm_calls` tanpa sesi yang lebih dari 1 tahun.
+
+Pg_cron dipilih, bukan Vercel Cron, karena tidak perlu route maupun secret dan tidak bergantung pada deploy (Vercel Hobby juga hanya menjamin presisi per jam). Riwayat run ada di `cron.job_run_details`. Batasan: sesi yang tugasnya dihapus pengajar (`assignment_id` menjadi null) tidak lagi terhubung ke kelas, sehingga tidak terjangkau job ini.
 
 ### 8b. RPC penilaian (M4)
 
