@@ -49,8 +49,10 @@ export default function PrivasiPage() {
               Rekaman suaramu tidak pernah disimpan
             </h2>
             <p className="mt-2 text-ink">
-              Server kami tidak menerima maupun menyimpan rekaman dari mikrofonmu. Suara hanya dialirkan langsung selama
-              percakapan, atau diubah menjadi teks di browser. Yang disimpan hanya transkrip teks percakapan, untuk penilaian.
+              Aplikasi ini tidak menyimpan rekaman suaramu, dan server kami tidak menerimanya. Di mode suara langsung,
+              suaramu dikirim dari browser langsung ke Google Gemini selama percakapan. Di mode hemat, suaramu diubah
+              menjadi teks oleh fitur pengenal suara bawaan browser. Dari percakapan, yang kami simpan hanya transkrip
+              teksnya untuk penilaian. Data lain yang kami simpan dijelaskan di tabel di bawah.
             </p>
           </section>
 

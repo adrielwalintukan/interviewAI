@@ -25,7 +25,7 @@ describe("PrivasiPage", () => {
 
     // Memverifikasi jaminan ADR-004: audio mikrofon tidak pernah disimpan
     expect(html).toContain("Rekaman suaramu tidak pernah disimpan");
-    expect(html).toContain("Server kami tidak menerima maupun menyimpan rekaman dari mikrofonmu");
+    expect(html).toContain("Aplikasi ini tidak menyimpan rekaman suaramu, dan server kami tidak menerimanya");
     expect(html).toContain("Tidak pernah disimpan");
 
     // Memverifikasi akurasi teknis hash bcrypt (Finding 1 PM review)
