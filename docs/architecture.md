@@ -155,10 +155,12 @@ Aturan:
 
 ## 5. Avatar & lip-sync
 
-- **Loader.** `GLTFLoader` + `VRMLoaderPlugin` (`@pixiv/three-vrm` 3.x) di dalam React Three Fiber. VRM dimuat dari Supabase Storage dan di-preload saat lobby.
+- **Loader.** `GLTFLoader` + `VRMLoaderPlugin` (`@pixiv/three-vrm` 3.x) di dalam React Three Fiber (`features/avatar/vrm-avatar.tsx`, dimuat lewat `next/dynamic` oleh `avatar.tsx`). VRM dimuat dari bucket publik `characters` (URL dari `characters.vrm_path`) dan di-preload saat lobby (`preload` as fetch).
+- **Cadangan.** Potret CSS tampil selama VRM dimuat, dan tetap tampil bila karakter tidak punya `vrm_path`, WebGL tidak tersedia, atau file gagal dimuat. `prefers-reduced-motion` mempertahankan avatar tetapi hanya dengan kedip + lip-sync (design-system §4).
+- **Kamera.** Setengah badan: dari puncak kepala (tulang `head` + 0,22 m) sampai `hips`, dihitung per karakter.
 - **Lip-sync mode Live.** Audio PCM diputar lewat `AudioContext` dan disambungkan ke `AnalyserNode`.
-  - **Amplitudo** (RMS) menggerakkan `aa`.
-  - **Energi pita frekuensi** dipakai untuk memperkirakan vokal dan menggerakkan ekspresi VRM `aa/ih/ou/ee/oh`, dengan smoothing 60–80 ms.
+  - **Amplitudo** (RMS, `analyserLevel`) menentukan seberapa lebar mulut terbuka.
+  - **Centroid spektral** di bawah 4 kHz (`analyserCentroid`) memilih vokal: gelap → `ou`/`oh`, tengah → `aa`, terang → `ee`/`ih` (`features/avatar/lip-sync.ts`), dengan smoothing 70 ms.
 - **Lip-sync mode Fallback.** Audio Gemini TTS diputar lewat `PcmPlayer` yang sama dengan Live, jadi lip-sync memakai level audio sungguhan (bukan perkiraan dari teks).
 - **Hidup.**
   - Kedip acak setiap 2–6 detik.
@@ -194,7 +196,7 @@ erDiagram
 | `profiles` | `id` (= auth.users.id), `role` (`admin`/`pengajar`/`pelajar`), `status` (`active`/`pending`/`disabled`), `display_name`, `username`, `must_change_password`, `mic_consent_at` |
 | `classes` | `id`, `owner_id`, `name`, `join_code` (unique), `archived_at` |
 | `class_members` | `class_id`, `user_id`, `joined_at`. PK gabungan |
-| `characters` | `id` (slug), `name`, `occupation`, `age_range`, `gender`, `live_voice` (suara melekat di karakter; salah satu dari 30 suara prebuilt Gemini, daftar terverifikasi di `features/admin/characters.ts`), `portrait_hue`, `vrm_path` (M3), `active`, `sort`. Seed 6 karakter. Dikelola Admin di halaman `/karakter` (menu "Karakter", US-A-03); tidak ada hapus permanen |
+| `characters` | `id` (slug), `name`, `occupation`, `age_range`, `gender`, `live_voice` (suara melekat di karakter; salah satu dari 30 suara prebuilt Gemini, daftar terverifikasi di `features/admin/characters.ts`), `portrait_hue`, `vrm_path` (nama file di bucket Storage `characters`; diisi migrasi untuk 6 preset), `active`, `sort`. Seed 6 karakter. Dikelola Admin di halaman `/karakter` (menu "Karakter", US-A-03); tidak ada hapus permanen |
 | `scenarios` | `id`, `author_id`, `title`, `draft` (jsonb, autosave editor, hanya penulis), `is_public` (hanya bila sudah terbit), `current_version_id` |
 | `scenario_versions` | **Brief** yang boleh dilihat pelajar: `id`, `scenario_id`, `version`, `title`, `language`, `level`, `learner_role`, `objective`, `client_name`, `client_occupation`, `character_id`, `published_at`. Immutable; dibuat hanya lewat RPC `publish_scenario()` |
 | `scenario_version_secrets` | **Rahasia**: `version_id`, `persona`, `facts` (F1..Fn), `rubric` (jsonb, divalidasi Zod `contentSchema`). Hanya penulis & admin; server membacanya untuk prompt/grader |

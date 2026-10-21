@@ -17,7 +17,7 @@ type Row = {
     title: string;
     language: "id" | "en";
     client_name: string;
-    characters: { portrait_hue: number } | null;
+    characters: { portrait_hue: number; vrm_path: string | null } | null;
   } | null;
 };
 
@@ -29,13 +29,15 @@ async function Room({ params }: { params: PageProps<"/sesi/[id]">["params"] }) {
   const supabase = await createClient();
   const { data: s } = await supabase
     .from("sessions")
-    .select("id, status, ends_at, v:scenario_versions(title, language, client_name, characters(portrait_hue))")
+    .select("id, status, ends_at, v:scenario_versions(title, language, client_name, characters(portrait_hue, vrm_path))")
     .eq("id", id)
     .eq("user_id", user.id) // a teacher reading a student's session must not get the stage
     .maybeSingle<Row>();
   if (!s?.v) notFound();
   if (s.status !== "active" || isPast(s.ends_at)) redirect(`/sesi/${id}/selesai`);
 
+  const vrmPath = s.v.characters?.vrm_path;
+  const vrmUrl = vrmPath ? supabase.storage.from("characters").getPublicUrl(vrmPath).data.publicUrl : null;
   const { data: messages } = await supabase.from("messages").select("speaker, text").eq("session_id", id).order("seq");
 
   return (
@@ -44,7 +46,7 @@ async function Room({ params }: { params: PageProps<"/sesi/[id]">["params"] }) {
       endsAt={s.ends_at}
       title={s.v.title}
       language={s.v.language}
-      character={{ name: s.v.client_name, hue: s.v.characters?.portrait_hue ?? 30 }}
+      character={{ name: s.v.client_name, hue: s.v.characters?.portrait_hue ?? 30, vrmUrl }}
       initialTurns={(messages ?? []).map((m) => ({ speaker: m.speaker as "learner" | "character", text: m.text as string }))}
     />
   );

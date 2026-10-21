@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Avatar } from "@/features/avatar/avatar";
 import { CharacterPortrait } from "@/features/scenario/character-portrait";
 import { chatTurn, endSession, logTurn, releaseLive, requestLiveToken } from "./actions";
 import { PcmPlayer, bytesToBase64, startMic, type Mic } from "./audio";
@@ -18,7 +19,7 @@ export type StageProps = {
   endsAt: string;
   title: string;
   language: "id" | "en";
-  character: { name: string; hue: number };
+  character: { name: string; hue: number; vrmUrl: string | null };
   initialTurns: Turn[];
 };
 
@@ -81,6 +82,9 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
     player.current?.close();
     player.current = null;
   }, []);
+
+  // Read by the avatar every frame: the voice that is playing, Live or mode hemat.
+  const voice = useCallback(() => ({ level: player.current?.level() ?? 0, centroid: player.current?.centroid() ?? 0 }), []);
 
   const hush = useCallback(() => {
     speakId.current += 1;
@@ -365,12 +369,21 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
       <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_26rem] lg:grid-rows-1">
         <section aria-label={`Karakter ${first}`} className="relative flex min-h-[36dvh] flex-col items-center justify-center overflow-hidden px-4 py-8 lg:min-h-0">
           <div aria-hidden className="spotlight pointer-events-none absolute inset-0" />
-          <div ref={ringRef} className="speaking-ring relative" style={{ ["--level" as string]: 0 }}>
-            <div className="scale-110 sm:scale-[1.6] lg:scale-[1.9]">
-              <CharacterPortrait name={character.name} hue={character.hue} size="lg" />
-            </div>
+          <div className="relative grid h-[30dvh] w-full max-w-md place-items-center sm:h-[42dvh] lg:h-[64dvh] lg:max-w-xl">
+            <Avatar
+              url={character.vrmUrl}
+              voice={voice}
+              pose={activity}
+              portrait={
+                <div ref={ringRef} className="speaking-ring relative" style={{ ["--level" as string]: 0 }}>
+                  <div className="scale-110 sm:scale-[1.6] lg:scale-[1.9]">
+                    <CharacterPortrait name={character.name} hue={character.hue} size="lg" />
+                  </div>
+                </div>
+              }
+            />
           </div>
-          <p role="status" className="relative mt-10 text-center font-mono text-label uppercase text-stage-ink-2 sm:mt-16 lg:mt-24">
+          <p role="status" className="relative mt-4 text-center font-mono text-label uppercase text-stage-ink-2">
             {status}
           </p>
           {notice && (

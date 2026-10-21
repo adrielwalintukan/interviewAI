@@ -23,10 +23,10 @@ async function Editor({ params }: { params: PageProps<"/skenario/[id]">["params"
       .maybeSingle<{ id: string; title: string; draft: unknown; is_public: boolean; current: { id: string; version: number } | null }>(),
     supabase
       .from("characters")
-      .select("id, name, occupation, age_range, gender, live_voice, portrait_hue")
+      .select("id, name, occupation, age_range, gender, live_voice, portrait_hue, vrm_path")
       .eq("active", true)
       .order("sort")
-      .returns<EditorCharacter[]>(),
+      .returns<(Omit<EditorCharacter, "vrm_url"> & { vrm_path: string | null })[]>(),
   ]);
   if (!s) notFound();
 
@@ -39,7 +39,10 @@ async function Editor({ params }: { params: PageProps<"/skenario/[id]">["params"
       <ScenarioEditor
         id={s.id}
         initialDraft={draftSchema.catch({}).parse(s.draft)}
-        characters={characters ?? []}
+        characters={(characters ?? []).map(({ vrm_path, ...c }) => ({
+          ...c,
+          vrm_url: vrm_path ? supabase.storage.from("characters").getPublicUrl(vrm_path).data.publicUrl : null,
+        }))}
         published={s.current ? { id: s.current.id, version: s.current.version, isPublic: s.is_public } : null}
       />
     </>

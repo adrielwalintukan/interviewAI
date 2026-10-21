@@ -4,7 +4,7 @@
 
 Interview AI adalah platform latihan **wawancara elisitasi kebutuhan** untuk sekolah dan kampus. Pelajar mewawancarai karakter AI 3D yang memerankan klien, pemilik bisnis, atau mitra. Karakter ini berbicara dan bereaksi secara realtime. Di setiap skenario tersimpan **fakta tersembunyi**: makin dalam dan tepat pertanyaan pelajar, makin banyak fakta yang terbuka. Setelah sesi selesai, AI menilai transkrip memakai rubrik, lalu Pengajar mereview hasilnya.
 
-Status: **M3 — Ruang Wawancara** (avatar VRM menunggu aset) (lihat [roadmap](docs/roadmap.md)). Prototipe lama ada di `../AI Interview` (lihat [audit-legacy.md](docs/audit-legacy.md)).
+Status: **M3 — Ruang Wawancara** (avatar VRM: kode dan 6 aset siap, menunggu unggah ke Storage dan uji perangkat) (lihat [roadmap](docs/roadmap.md)). Prototipe lama ada di `../AI Interview` (lihat [audit-legacy.md](docs/audit-legacy.md)).
 
 ## Indeks dokumen
 
