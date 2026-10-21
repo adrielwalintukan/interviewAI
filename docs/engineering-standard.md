@@ -112,25 +112,25 @@ gitGraph
 
 | Budget | Target |
 |---|---|
-| LCP halaman editorial (4G, mobile menengah) | < 2.5 dtk |
+| LCP halaman editorial (profil mobile Lighthouse, lihat Pengukuran) | < 3.0 dtk (sementara, ditinjau setelah pilot) |
 | JS awal halaman editorial | < 180 KB gzip |
 | Bundle panggung (three + vrm) | Dimuat terpisah lewat `next/dynamic`, hanya di `/sesi` |
 | Ukuran per VRM | ≤ 8 MB, tekstur ≤ 1024² |
 | FPS avatar | ≥ 50 desktop, ≥ 30 mobile menengah |
 
-**Pengukuran.** `npm run build` + `npm start`, lalu Lighthouse mode mobile dengan profil bawaan (simulasi 1,6 Mbps, RTT 150 ms, CPU 4×), cache dingin, median 3 run. Halaman yang butuh login diukur di Chrome yang sudah login (`--port`, `--disable-storage-reset`, cache dikosongkan sebelum tiap run).
+**Pengukuran.** `npm run build` + `npm start`, lalu Lighthouse mode mobile dengan profil bawaan (1,6 Mbps, RTT 150 ms, CPU 4×, setara "Slow 4G") dan **throttling diterapkan sungguhan** (`--throttling-method=devtools`), cache dingin, median 3 run. Simulasi bawaan Lighthouse (`simulate`) lebih pesimis karena menghitung semua byte yang diminta sebelum LCP, termasuk JS async. Halaman yang butuh login diukur di Chrome yang sudah login (`--port`, `--disable-storage-reset`, cache dikosongkan sebelum tiap run). Target awal < 2.5 dtk tidak tercapai tanpa perubahan besar (#45); target sementara < 3.0 dtk diputuskan pemilik repo (2026-10-21).
 
-Hasil audit 2026-10-21 (#25):
+Hasil 2026-10-21, build produksi lokal ke Supabase hosted (#25, #45). Status ✅/❌ dinilai dari median 3 run; rentang menunjukkan variasi antar-run, bukan berarti setiap run memenuhi budget.
 
-| Halaman | LCP | JS awal (gzip) | CLS | TBT |
-|---|---|---|---|---|
-| `/masuk` | 2,88 s ❌ | 142 KB ✅ | 0 | 70–290 ms |
-| `/dashboard` | 3,32 s ❌ | 154 KB ✅ | ≤ 0,06 | 100–510 ms |
-| `/kelas/[id]` | 3,36 s ❌ | 160 KB ✅ | 0,093 | 140–350 ms |
-| `/pustaka` | 3,23 s ❌ | 153 KB ✅ | ≤ 0,054 | 210–530 ms |
-| `/sesi/[id]/selesai` | 3,21 s ❌ | 156 KB ✅ | ≤ 0,098 | 120–190 ms |
+| Halaman | LCP median (rentang) | JS awal (gzip) |
+|---|---|---|
+| `/masuk` | 2,91 s ✅ (2,68–3,02) | 142 KB ✅ |
+| `/dashboard` | 2,96 s ✅ (2,47–4,04) | 154 KB ✅ |
+| `/kelas/[id]` | 3,76 s ❌ (3,66–6,04) | 160 KB ✅ |
+| `/pustaka` | 2,61 s ✅ (2,53–2,64) | 149 KB ✅ |
+| `/sesi/[id]/selesai` | 3,56 s ❌ (2,71–3,72) | 152 KB ✅ |
 
-LCP kunjungan pertama melewati budget di semua halaman; kunjungan berikutnya (cache hangat) 0,7–1,2 s. Penyebabnya bukan satu komponen: HTML, CSS, JS framework (~142 KB), dan 3 font yang di-preload (~133 KB) berebut bandwidth simulasi. Perbaikan dan penetapan arti "4G" dilacak di #45.
+TTFB 13–156 ms (kerangka halaman sudah disiapkan). Di `/kelas/[id]` dan `/sesi/[id]/selesai`, elemen LCP adalah teks yang menunggu data dari Supabase, dan data itu diambil dari laptop lewat internet. Angka ini belum mewakili deploy Vercel, sehingga keduanya diukur ulang di deploy Vercel (#18) sebelum #45 ditutup. Kunjungan berikutnya (cache hangat): 0,7–1,2 s. Simulasi bawaan Lighthouse memberi 2,88–3,36 s untuk semua halaman.
 
 ## 8. Definition of Done
 
