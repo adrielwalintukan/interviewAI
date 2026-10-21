@@ -12,7 +12,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/kelas/[id]/tuga
   if (!results) return new Response("Tidak ditemukan", { status: 404 });
   if (results.failed) return new Response("Nilai gagal dimuat. Coba lagi.", { status: 500 });
 
-  return new Response(scoresCsv(results.learners), {
+  return new Response(scoresCsv(results.learners, results.assignment.client_level), {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": `attachment; filename="${scoresFileName(results.assignment.v?.title ?? "", new Date())}"`,

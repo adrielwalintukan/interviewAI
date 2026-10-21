@@ -124,7 +124,7 @@ export async function requestLiveToken(sessionId: string): Promise<LiveGrant> {
             responseModalities: ["AUDIO"],
             speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: ctx.voice } } },
           },
-          systemInstruction: { parts: [{ text: buildPersonaPrompt(ctx.content) }] },
+          systemInstruction: { parts: [{ text: buildPersonaPrompt(ctx.content, ctx.clientLevel) }] },
           inputAudioTranscription: {},
           outputAudioTranscription: {},
         },
@@ -195,7 +195,7 @@ export async function chatTurn(sessionId: string, text: string | null): Promise<
       task: "chat",
       sessionId,
       messages: [
-        { role: "system", content: buildPersonaPrompt(ctx.content) },
+        { role: "system", content: buildPersonaPrompt(ctx.content, ctx.clientLevel) },
         ...(history ?? []).map((m) => ({ role: m.speaker === "learner" ? ("user" as const) : ("assistant" as const), content: m.text as string })),
         { role: "user", content: t.data },
       ],

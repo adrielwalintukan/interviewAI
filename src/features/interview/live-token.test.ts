@@ -11,7 +11,7 @@ vi.mock("@/features/auth/dal", () => ({ requireUser: async () => ({ id: "learner
 vi.mock("@/features/grading/grade", () => ({ gradeSession: vi.fn() }));
 vi.mock("@/lib/llm/gateway", () => ({ complete: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
-vi.mock("@/lib/llm/prompts/persona", () => ({ PERSONA_PROMPT_VERSION: "persona@test", buildPersonaPrompt: () => "persona" }));
+vi.mock("@/lib/llm/prompts/persona", () => ({ PERSONA_PROMPT_VERSION: "persona@test", buildPersonaPrompt: (_: unknown, level: string) => `persona:${level}` }));
 vi.mock("@/lib/env", () => ({
   liveMaxConcurrent: () => 5,
   liveEnv: () => {
@@ -25,6 +25,7 @@ vi.mock("./context", () => ({
     supabase: { rpc },
     voice: "Aoede",
     content: {},
+    clientLevel: "sulit",
     session: { ends_at: new Date(Date.now() + 15 * 60_000).toISOString() },
   }),
 }));
@@ -42,6 +43,14 @@ beforeEach(() => {
     fn === "claim_live_slot" && state.claimFails ? { data: null, error: { message: "db down" } } : { data: fn === "claim_live_slot" ? state.slotFree : null, error: null },
   );
   fetchMock.mockReset().mockResolvedValue(new Response(JSON.stringify({ name: "auth_tokens/t" })));
+});
+
+describe("requestLiveToken setup", () => {
+  it("locks the persona for the assignment's client level into the token (issue #49)", async () => {
+    await requestLiveToken(SESSION);
+    const body = JSON.parse(fetchMock.mock.calls[0]![1].body as string);
+    expect(body.bidiGenerateContentSetup.systemInstruction.parts[0].text).toBe("persona:sulit");
+  });
 });
 
 describe("requestLiveToken logging", () => {

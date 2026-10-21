@@ -7,6 +7,7 @@ import { LobbyStart } from "@/features/interview/lobby-start";
 import { CharacterPortrait } from "@/features/scenario/character-portrait";
 import { createClient } from "@/lib/supabase/server";
 import { isPast, nowIso } from "@/lib/time";
+import { CLIENT_LEVEL_LOBBY, type ClientLevel } from "@/features/classroom/client-level";
 
 export const metadata = { title: "Bersiap wawancara — Interview AI" };
 
@@ -30,7 +31,7 @@ async function Lobby({ searchParams }: { searchParams: PageProps<"/sesi/mulai">[
 
   let kind: "assignment" | "library" | "preview";
   let brief: Brief | null = null;
-  let meta: { minutes: number; dueAt?: string | null; attemptsLeft?: number; max?: number } = { minutes: 15 };
+  let meta: { minutes: number; dueAt?: string | null; attemptsLeft?: number; max?: number; clientLevel?: ClientLevel } = { minutes: 15 };
   let disabledReason: string | undefined;
   let back = "/dashboard";
 
@@ -38,7 +39,7 @@ async function Lobby({ searchParams }: { searchParams: PageProps<"/sesi/mulai">[
     kind = "assignment";
     const { data: a } = await supabase
       .from("assignments")
-      .select(`id, class_id, due_at, duration_min, max_attempts, classes!inner(archived_at), v:scenario_versions(${BRIEF})`)
+      .select(`id, class_id, due_at, duration_min, max_attempts, client_level, classes!inner(archived_at), v:scenario_versions(${BRIEF})`)
       .eq("id", sp.tugas)
       .maybeSingle<{
         id: string;
@@ -46,6 +47,7 @@ async function Lobby({ searchParams }: { searchParams: PageProps<"/sesi/mulai">[
         due_at: string | null;
         duration_min: number;
         max_attempts: number;
+        client_level: ClientLevel;
         classes: { archived_at: string | null } | null;
         v: Brief | null;
       }>();
@@ -53,7 +55,7 @@ async function Lobby({ searchParams }: { searchParams: PageProps<"/sesi/mulai">[
     const { count } = await supabase.from("sessions").select("id", { count: "exact", head: true }).eq("assignment_id", a.id).eq("user_id", user.id);
     brief = a.v;
     back = `/kelas/${a.class_id}`;
-    meta = { minutes: a.duration_min, dueAt: a.due_at, attemptsLeft: a.max_attempts - (count ?? 0), max: a.max_attempts };
+    meta = { minutes: a.duration_min, dueAt: a.due_at, attemptsLeft: a.max_attempts - (count ?? 0), max: a.max_attempts, clientLevel: a.client_level };
     if (a.classes?.archived_at) disabledReason = "Kelas ini sudah diarsipkan. Tugas tidak bisa dimulai.";
     else if (user.role !== "pelajar") disabledReason = "Hanya pelajar yang mengerjakan tugas. Gunakan “Uji coba” di editor skenario.";
     else if (meta.attemptsLeft! <= 0) disabledReason = "Kesempatan untuk tugas ini sudah habis.";
@@ -104,6 +106,12 @@ async function Lobby({ searchParams }: { searchParams: PageProps<"/sesi/mulai">[
                 <dt className="font-mono text-label uppercase text-ink-2">Tujuan</dt>
                 <dd className="text-base">{brief.objective}</dd>
               </div>
+              {meta.clientLevel && (
+                <div>
+                  <dt className="font-mono text-label uppercase text-ink-2">Sikap klien</dt>
+                  <dd className="text-base">Klien {CLIENT_LEVEL_LOBBY[meta.clientLevel]}</dd>
+                </div>
+              )}
             </dl>
           </div>
           <ul className="mt-8 flex flex-wrap gap-x-5 gap-y-1 font-mono text-label uppercase text-ink-2">

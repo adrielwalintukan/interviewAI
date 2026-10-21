@@ -10,6 +10,7 @@ import { ResetPasswordButton } from "@/features/auth/reset-password-button";
 import { SessionHistory, type HistoryRow } from "@/features/interview/session-history";
 import { CharacterPortrait } from "@/features/scenario/character-portrait";
 import { createClient } from "@/lib/supabase/server";
+import { CLIENT_LEVEL_NAME, type ClientLevel } from "@/features/classroom/client-level";
 
 export const metadata = { title: "Kelas — Interview AI" };
 
@@ -20,6 +21,7 @@ type AssignmentRow = {
   due_at: string | null;
   duration_min: number;
   max_attempts: number;
+  client_level: ClientLevel;
   v: {
     title: string;
     version: number;
@@ -84,6 +86,7 @@ function AssignmentList({
               <DueState iso={a.due_at} />
               <span>{a.duration_min} menit</span>
               <span>{a.max_attempts}× percobaan</span>
+              <span>Sikap klien: {CLIENT_LEVEL_NAME[a.client_level]}</span>
             </p>
           </div>
           <div className="flex max-w-24 shrink-0 flex-col items-end gap-2 sm:max-w-none">
@@ -148,7 +151,7 @@ async function ClassDetail({ params }: { params: PageProps<"/kelas/[id]">["param
   const { data: assignmentData, error: assignmentError } = await supabase
     .from("assignments")
     .select(
-      "id, due_at, duration_min, max_attempts, v:scenario_versions(title, version, client_name, client_occupation, learner_role, objective, characters(portrait_hue))",
+      "id, due_at, duration_min, max_attempts, client_level, v:scenario_versions(title, version, client_name, client_occupation, learner_role, objective, characters(portrait_hue))",
     )
     .eq("class_id", id)
     .order("created_at", { ascending: false })

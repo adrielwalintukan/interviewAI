@@ -1,6 +1,7 @@
 import "server-only";
 import type { CurrentUser } from "@/features/auth/dal";
 import { createClient } from "@/lib/supabase/server";
+import type { ClientLevel } from "@/features/classroom/client-level";
 import { learnerStatus } from "./class-dashboard";
 import type { GradeResult } from "./result";
 
@@ -8,6 +9,7 @@ type AssignmentRow = {
   id: string;
   due_at: string | null;
   max_attempts: number;
+  client_level: ClientLevel;
   scenario_version_id: string;
   classes: { name: string; owner_id: string } | null;
   v: { title: string; scenarios: { author_id: string } | null } | null;
@@ -36,7 +38,7 @@ export async function loadAssignmentResults(user: CurrentUser, classId: string, 
   // scenarios(author_id) is readable by its author and admins only, so it is null for other teachers.
   const { data: a, error: aError } = await supabase
     .from("assignments")
-    .select("id, due_at, max_attempts, scenario_version_id, classes(name, owner_id), v:scenario_versions(title, scenarios!scenario_id(author_id))")
+    .select("id, due_at, max_attempts, client_level, scenario_version_id, classes(name, owner_id), v:scenario_versions(title, scenarios!scenario_id(author_id))")
     .eq("id", assignmentId)
     .eq("class_id", classId)
     .maybeSingle<AssignmentRow>();

@@ -15,6 +15,7 @@ Bahasa domain dipakai konsisten di UI, dokumen, dan kode. Kolom "Kode" adalah id
 | Peran Pelajar | `learner_role` | Siapa pelajar dalam skenario (analis sistem, calon mitra bisnis, dst) |
 | Fakta Tersembunyi | `fact` | Satu kebutuhan atau informasi yang harus digali; punya kategori, bobot, kesulitan, dan pemicu |
 | Kesulitan | `difficulty` | 1–3: seberapa spesifik pertanyaan yang dibutuhkan untuk membuka sebuah fakta |
+| Sikap Klien | `client_level` | Mudah / Normal / Sulit: seberapa terbuka klien di sesi tugas; menggeser kesulitan fakta satu tingkat (`docs/ai-design.md §2`) |
 | Cakupan | `coverage` | Persentase bobot fakta yang berhasil digali dalam satu sesi |
 | Rubrik | `rubric` | Kriteria kualitas wawancara, masing-masing dengan level 1–4 |
 | Tugas | `assignment` | Skenario yang diberikan ke kelas, dengan tenggat, durasi, dan batas percobaan |

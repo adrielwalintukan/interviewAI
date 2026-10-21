@@ -10,6 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { checkClassCanAcceptAssignment } from "./archive";
 import { generateInitialPassword, parseStudentCsv } from "./bulk-students";
+import { CLIENT_LEVELS } from "./client-level";
 import { toDueInstant } from "./due-date";
 
 const className = z.string().trim().min(1, "Nama kelas wajib diisi").max(80, "Maksimal 80 karakter");
@@ -161,6 +162,7 @@ const assignmentInput = z.object({
   tzOffsetMin: z.coerce.number().int().min(-840).max(840),
   durationMin: z.coerce.number().int().min(5, "Durasi 5–60 menit").max(60, "Durasi 5–60 menit"),
   maxAttempts: z.coerce.number().int().min(1, "Percobaan 1–10").max(10, "Percobaan 1–10"),
+  clientLevel: z.enum(CLIENT_LEVELS, "Pilih sikap klien"),
 });
 
 /** US-G-06: give a published scenario version to a class (the version is a snapshot). */
@@ -172,7 +174,7 @@ export async function createAssignment(_: FormState, form: FormData): Promise<Fo
     for (const i of parsed.error.issues) fe[String(i.path[0])] ??= i.message;
     return { fieldErrors: fe };
   }
-  const { classId, versionId, dueLocal, tzOffsetMin, durationMin, maxAttempts } = parsed.data;
+  const { classId, versionId, dueLocal, tzOffsetMin, durationMin, maxAttempts, clientLevel } = parsed.data;
   const dueAt = toDueInstant(dueLocal, tzOffsetMin);
   if (dueAt && Date.parse(dueAt) < Date.now()) return { fieldErrors: { dueLocal: "Tenggat sudah lewat" } };
 
@@ -192,6 +194,7 @@ export async function createAssignment(_: FormState, form: FormData): Promise<Fo
     due_at: dueAt,
     duration_min: durationMin,
     max_attempts: maxAttempts,
+    client_level: clientLevel,
   });
   if (error) return { error: "Tugas gagal dibuat." };
   revalidatePath(`/kelas/${classId}`);
