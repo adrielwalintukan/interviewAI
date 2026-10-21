@@ -62,7 +62,7 @@ for (const file of ["laundry"]) {
         const res = await complete({
           task: "chat",
           messages: [
-            { role: "system", content: buildPersonaPrompt(scenario, level) },
+            { role: "system", content: buildPersonaPrompt(scenario, level, 15) },
             ...transcript.map((t) => ({ role: t.speaker === "learner" ? ("user" as const) : ("assistant" as const), content: t.text })),
           ],
         });

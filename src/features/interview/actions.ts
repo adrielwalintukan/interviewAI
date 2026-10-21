@@ -9,7 +9,7 @@ import { gradeSession } from "@/features/grading/grade";
 import { liveEnv, liveMaxConcurrent } from "@/lib/env";
 import { complete } from "@/lib/llm/gateway";
 import { isTimeoutError, logLlmCall } from "@/lib/llm/log";
-import { PERSONA_PROMPT_VERSION, buildPersonaPrompt } from "@/lib/llm/prompts/persona";
+import { PERSONA_PROMPT_VERSION, buildPersonaPrompt, openCue } from "@/lib/llm/prompts/persona";
 import { createClient } from "@/lib/supabase/server";
 import { loadOwnActiveSession } from "./context";
 
@@ -124,7 +124,7 @@ export async function requestLiveToken(sessionId: string): Promise<LiveGrant> {
             responseModalities: ["AUDIO"],
             speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: ctx.voice } } },
           },
-          systemInstruction: { parts: [{ text: buildPersonaPrompt(ctx.content, ctx.clientLevel) }] },
+          systemInstruction: { parts: [{ text: buildPersonaPrompt(ctx.content, ctx.clientLevel, ctx.minutes) }] },
           inputAudioTranscription: {},
           outputAudioTranscription: {},
         },
@@ -177,27 +177,25 @@ export async function chatTurn(sessionId: string, text: string | null): Promise<
     .eq("session_id", sessionId)
     .order("seq", { ascending: true });
 
-  // null = open the conversation: the character greets with its opening line, no LLM call needed.
-  if (text === null) {
-    if (history?.length) return { ok: true, reply: "" };
-    const opening = ctx.content.persona.openingLine;
-    await ctx.supabase.rpc("append_message", { p_session_id: sessionId, p_speaker: "character", p_text: opening });
-    return { ok: true, reply: opening };
+  // null = open the conversation: the character greets in its own words, like the Live cue (persona@4).
+  if (text === null && history?.length) return { ok: true, reply: "" };
+  let learnerText = openCue(); // the cue is sent to the model but never saved to the transcript
+  if (text !== null) {
+    const t = turnText.safeParse(text);
+    if (!t.success) return { ok: false, error: "Pertanyaan kosong atau terlalu panjang." };
+    const { error: appendError } = await ctx.supabase.rpc("append_message", { p_session_id: sessionId, p_speaker: "learner", p_text: t.data });
+    if (appendError) return { ok: false, error: appendError.message.includes("rate_limited") ? "Pelan-pelan, terlalu banyak pesan." : "Sesi sudah berakhir.", closed: !appendError.message.includes("rate_limited") };
+    learnerText = t.data;
   }
-
-  const t = turnText.safeParse(text);
-  if (!t.success) return { ok: false, error: "Pertanyaan kosong atau terlalu panjang." };
-  const { error: appendError } = await ctx.supabase.rpc("append_message", { p_session_id: sessionId, p_speaker: "learner", p_text: t.data });
-  if (appendError) return { ok: false, error: appendError.message.includes("rate_limited") ? "Pelan-pelan, terlalu banyak pesan." : "Sesi sudah berakhir.", closed: !appendError.message.includes("rate_limited") };
 
   try {
     const res = await complete({
       task: "chat",
       sessionId,
       messages: [
-        { role: "system", content: buildPersonaPrompt(ctx.content, ctx.clientLevel) },
+        { role: "system", content: buildPersonaPrompt(ctx.content, ctx.clientLevel, ctx.minutes) },
         ...(history ?? []).map((m) => ({ role: m.speaker === "learner" ? ("user" as const) : ("assistant" as const), content: m.text as string })),
-        { role: "user", content: t.data },
+        { role: "user", content: learnerText },
       ],
     });
     const reply = res.text.replace(/[*_#`]/g, "").trim().slice(0, 2000) || "Maaf, bisa diulang pertanyaannya?";

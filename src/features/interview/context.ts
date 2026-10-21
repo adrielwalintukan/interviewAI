@@ -10,6 +10,7 @@ export type SessionRow = {
   kind: "assignment" | "library" | "preview";
   mode: "live" | "fallback";
   status: string;
+  started_at: string;
   ends_at: string;
   scenario_version_id: string;
   assignment: { client_level: ClientLevel } | null;
@@ -23,7 +24,7 @@ export async function loadOwnActiveSession(sessionId: string, userId: string) {
   const supabase = await createClient();
   const { data: session } = await supabase
     .from("sessions")
-    .select("id, user_id, kind, mode, status, ends_at, scenario_version_id, assignment:assignments(client_level)")
+    .select("id, user_id, kind, mode, status, started_at, ends_at, scenario_version_id, assignment:assignments(client_level)")
     .eq("id", sessionId)
     .eq("user_id", userId)
     .maybeSingle<SessionRow>();
@@ -32,7 +33,9 @@ export async function loadOwnActiveSession(sessionId: string, userId: string) {
   const scenario = await loadScenarioContent(session.scenario_version_id);
   if (!scenario) return null;
   // Library practice and teacher previews have no assignment: always "normal" (issue #49).
-  return { supabase, session, clientLevel: session.assignment?.client_level ?? ("normal" as ClientLevel), ...scenario };
+  // The persona states the real limit instead of whatever the scenario text says.
+  const minutes = Math.round((Date.parse(session.ends_at) - Date.parse(session.started_at)) / 60_000);
+  return { supabase, session, minutes, clientLevel: session.assignment?.client_level ?? ("normal" as ClientLevel), ...scenario };
 }
 
 /**
