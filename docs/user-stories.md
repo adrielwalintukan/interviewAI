@@ -79,6 +79,8 @@ Sebagai Pelajar tanpa email, saya ingin login dengan username dan password awal 
 ### US-G-06 Memberi tugas (M)
 - **When** saya membuat tugas dari skenario terbit, **then** saya mengatur tenggat, durasi (default 15), dan percobaan (default 3).
 - **Given** skenario diedit setelah tugas dibuat, **then** tugas tetap memakai versi skenario saat tugas dibuat (snapshot).
+- **When** saya membuat tugas, **then** saya memilih sikap klien: Mudah (klien terbuka, banyak bercerita sendiri), Normal (klien menjawab yang ditanya, default), atau Sulit (klien tertutup, perlu pertanyaan lanjutan). Sikap ini tidak bisa diubah setelah tugas dibuat, tidak mengubah rumus nilai, dan ditampilkan di daftar tugas, rekap, dan CSV nilai. (#49)
+- **Given** tugas punya sikap klien, **then** pelajar melihatnya di lobby sebelum masuk ruang wawancara.
 
 ### US-G-07 Mereview penilaian (M)
 - **Then** saya melihat transkrip berdampingan dengan penilaian AI, beserta bukti per fakta.

@@ -1,4 +1,5 @@
 import type { ScenarioContent } from "@/features/scenario/schema";
+import { CLIENT_LEVEL_NAME, type ClientLevel } from "@/features/classroom/client-level";
 import { csvCell } from "@/features/classroom/csv-cell";
 import type { GradeResult } from "./result";
 
@@ -67,9 +68,14 @@ export function missedFacts(
  * US-G-09: one row per learner of the class, including those who never started (empty score). Every cell
  * goes through csvCell (formula injection, docs/security-privacy.md). BOM so Excel reads UTF-8 names.
  */
-export function scoresCsv(rows: { name: string; username: string | null; attempts: number; best: number | null; status: LearnerStatus }[]): string {
-  const lines = rows.map((r) => [r.name, r.username ?? "", String(r.attempts), r.best === null ? "" : String(r.best), LEARNER_STATUS_LABEL[r.status]].map(csvCell).join(","));
-  return String.fromCharCode(0xfeff) + ["nama,username,percobaan,nilai_final_terbaik,status", ...lines].join("\r\n") + "\r\n";
+export function scoresCsv(
+  rows: { name: string; username: string | null; attempts: number; best: number | null; status: LearnerStatus }[],
+  level: ClientLevel,
+): string {
+  const lines = rows.map((r) =>
+    [r.name, r.username ?? "", String(r.attempts), r.best === null ? "" : String(r.best), LEARNER_STATUS_LABEL[r.status], CLIENT_LEVEL_NAME[level]].map(csvCell).join(","),
+  );
+  return String.fromCharCode(0xfeff) + ["nama,username,percobaan,nilai_final_terbaik,status,sikap_klien", ...lines].join("\r\n") + "\r\n";
 }
 
 /** `nilai-<judul>-<YYYY-MM-DD>.csv`, ASCII only so every browser keeps the name. */

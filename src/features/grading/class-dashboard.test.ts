@@ -59,15 +59,15 @@ describe("scoresCsv", () => {
       { name: "Budi, S.", username: "budi", attempts: 2, best: 87, status: "dinilai" },
       { name: "=HYPERLINK(\"x\")", username: null, attempts: 0, best: null, status: "belum" },
       { name: "@ani", username: "-ani", attempts: 1, best: null, status: "selesai" },
-    ]);
+    ], "sulit");
     expect(csv.charCodeAt(0)).toBe(0xfeff);
-    expect(csv.slice(1).startsWith("nama,username,percobaan,nilai_final_terbaik,status\r\n")).toBe(true);
+    expect(csv.slice(1).startsWith("nama,username,percobaan,nilai_final_terbaik,status,sikap_klien\r\n")).toBe(true);
     const rows = csv.slice(1).trimEnd().split("\r\n");
     expect(rows).toEqual([
-      "nama,username,percobaan,nilai_final_terbaik,status",
-      "\"Budi, S.\",budi,2,87,Dinilai",
-      "\"'=HYPERLINK(\"\"x\"\")\",,0,,Belum mulai",
-      "'@ani,'-ani,1,,\"Selesai, belum dinilai\"",
+      "nama,username,percobaan,nilai_final_terbaik,status,sikap_klien",
+      "\"Budi, S.\",budi,2,87,Dinilai,Sulit",
+      "\"'=HYPERLINK(\"\"x\"\")\",,0,,Belum mulai,Sulit",
+      "'@ani,'-ani,1,,\"Selesai, belum dinilai\",Sulit",
     ]);
   });
 });

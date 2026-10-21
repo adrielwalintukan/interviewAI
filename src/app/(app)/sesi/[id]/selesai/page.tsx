@@ -13,6 +13,7 @@ import { DownloadPdfButton } from "@/features/interview/download-pdf";
 import { FACT_CATEGORIES } from "@/features/scenario/schema";
 import { createClient } from "@/lib/supabase/server";
 import { isPast } from "@/lib/time";
+import { CLIENT_LEVEL_NAME, type ClientLevel } from "@/features/classroom/client-level";
 
 export const metadata = { title: "Wawancara selesai — Interview AI" };
 // Grading may run here (after the response) when the timer closed the session without "Akhiri".
@@ -28,7 +29,7 @@ type Row = {
   ends_at: string;
   ended_at: string | null;
   scenario_version_id: string;
-  assignment: { class_id: string; due_at: string | null; classes: { owner_id: string } | null } | null;
+  assignment: { class_id: string; due_at: string | null; client_level: ClientLevel; classes: { owner_id: string } | null } | null;
   v: { title: string; client_name: string } | null;
 };
 
@@ -190,7 +191,7 @@ async function Summary({ params }: { params: PageProps<"/sesi/[id]/selesai">["pa
   // RLS: the learner, their class teacher, or an admin.
   const { data: s } = await supabase
     .from("sessions")
-    .select("id, user_id, kind, mode, status, started_at, ends_at, ended_at, scenario_version_id, assignment:assignments(class_id, due_at, classes(owner_id)), v:scenario_versions(title, client_name)")
+    .select("id, user_id, kind, mode, status, started_at, ends_at, ended_at, scenario_version_id, assignment:assignments(class_id, due_at, client_level, classes(owner_id)), v:scenario_versions(title, client_name)")
     .eq("id", id)
     .maybeSingle<Row>();
   if (!s?.v) notFound();
@@ -233,6 +234,9 @@ async function Summary({ params }: { params: PageProps<"/sesi/[id]/selesai">["pa
       <section className="lg:col-span-4">
         <p className="font-mono text-label uppercase text-accent">{running ? "Sesi berjalan" : "Wawancara selesai"}</p>
         <h1 className="mt-3 font-display text-4xl font-medium tracking-tight text-balance">{s.v.title}</h1>
+        {s.assignment && (
+          <p className="mt-2 font-mono text-label uppercase text-ink-2">Sikap klien: {CLIENT_LEVEL_NAME[s.assignment.client_level]}</p>
+        )}
         {graded && (
           <p className="mt-6">
             <span className="block font-mono text-label uppercase text-ink-2">{graded.reviewed ? "Nilai final" : "Nilai"}</span>

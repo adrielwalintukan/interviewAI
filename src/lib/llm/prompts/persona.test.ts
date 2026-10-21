@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPersonaPrompt } from "./persona";
+import { buildPersonaPrompt, effectiveDifficulty } from "./persona";
 
 const input = {
   language: "en" as const,
@@ -48,5 +48,36 @@ describe("buildPersonaPrompt", () => {
 
   it("does not leak grading data (rubric, triggers, weights)", () => {
     expect(prompt).not.toMatch(/SDM|volume|bobot|weight/i);
+  });
+});
+
+describe("client level (issue #49)", () => {
+  it("shifts difficulty by one step and clamps to 0..3", () => {
+    expect([1, 2, 3].map((d) => effectiveDifficulty(d, "mudah"))).toEqual([0, 1, 2]);
+    expect([1, 2, 3].map((d) => effectiveDifficulty(d, "normal"))).toEqual([1, 2, 3]);
+    expect([1, 2, 3].map((d) => effectiveDifficulty(d, "sulit"))).toEqual([2, 3, 3]);
+  });
+
+  it("normal is the default and adds no mood", () => {
+    expect(buildPersonaPrompt(input, "normal")).toBe(buildPersonaPrompt(input));
+    expect(buildPersonaPrompt(input)).not.toMatch(/Hari ini kamu/);
+  });
+
+  it("mudah lets a difficulty-1 fact be told unprompted and sounds open", () => {
+    const p = buildPersonaPrompt(input, "mudah");
+    expect(p).toContain("[F2 | kesulitan 0: boleh kamu ceritakan sendiri walau belum ditanya");
+    expect(p).toContain("[F1 | kesulitan 2: hanya bila ditanya langsung");
+    expect(p).toMatch(/santai dan senang diajak ngobrol/);
+  });
+
+  it("sulit raises difficulty, caps at 3, and sounds guarded", () => {
+    const p = buildPersonaPrompt(input, "sulit");
+    expect(p).toContain("[F2 | kesulitan 2: hanya bila ditanya langsung");
+    expect(p).toContain("[F1 | kesulitan 3: hanya bila pewawancara menggali lebih dalam");
+    expect(p).toMatch(/sibuk dan agak curiga/);
+  });
+
+  it("keeps the one-new-fact-per-answer rule at every level", () => {
+    for (const level of ["mudah", "normal", "sulit"] as const) expect(buildPersonaPrompt(input, level)).toContain("Satu jawaban paling banyak membuka satu fakta baru.");
   });
 });

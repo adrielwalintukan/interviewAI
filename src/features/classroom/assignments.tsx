@@ -3,6 +3,7 @@
 import { useActionState, useSyncExternalStore } from "react";
 import { Field, Notice, SubmitButton } from "@/components/ui/form";
 import { createAssignment } from "./actions";
+import { CLIENT_LEVELS, CLIENT_LEVEL_OPTION } from "./client-level";
 import { formatDue } from "./due-date";
 
 const noSubscribe = () => () => {};
@@ -74,6 +75,19 @@ export function AssignmentForm({ classId, own, library }: { classId: string; own
       </div>
       <div className="sm:col-span-2">
         <Field label="Tenggat (opsional)" name="dueLocal" type="datetime-local" error={fe?.dueLocal} hint="Zona waktu mengikuti perangkat Anda." />
+      </div>
+      <div className="flex flex-col gap-1.5 sm:col-span-2">
+        <label htmlFor="clientLevel" className="font-mono text-label uppercase text-ink-2">
+          Sikap klien
+        </label>
+        <select id="clientLevel" name="clientLevel" required defaultValue="normal" className="min-h-11 rounded-sm border border-rule bg-paper px-3 text-base outline-none focus:border-ink">
+          {CLIENT_LEVELS.map((l) => (
+            <option key={l} value={l}>
+              {CLIENT_LEVEL_OPTION[l]}
+            </option>
+          ))}
+        </select>
+        {fe?.clientLevel && <p className="text-sm text-accent">{fe.clientLevel}</p>}
       </div>
       <Field label="Durasi (menit)" name="durationMin" type="number" min={5} max={60} defaultValue={15} required error={fe?.durationMin} />
       <Field label="Batas percobaan" name="maxAttempts" type="number" min={1} max={10} defaultValue={3} required error={fe?.maxAttempts} />

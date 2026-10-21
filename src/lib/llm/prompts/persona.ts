@@ -1,27 +1,48 @@
+import type { ClientLevel } from "@/features/classroom/client-level";
 import type { ScenarioContent } from "@/features/scenario/schema";
 
-export const PERSONA_PROMPT_VERSION = "persona@2";
+export const PERSONA_PROMPT_VERSION = "persona@3";
 
 export type PersonaInput = Pick<ScenarioContent, "language" | "learnerRole" | "objective" | "persona" | "facts">;
 
 const DIFFICULTY_RULE = {
+  0: "boleh kamu ceritakan sendiri walau belum ditanya, bila nyambung dengan obrolan",
   1: "boleh disebut bila topiknya disinggung secara umum",
   2: "hanya bila ditanya langsung tentang topik itu",
   3: "hanya bila pewawancara menggali lebih dalam dengan pertanyaan lanjutan yang spesifik",
 } as const;
 
+const SHIFT: Record<ClientLevel, number> = { mudah: -1, normal: 0, sulit: 1 };
+
+/** Issue #49: the fact difficulty the client actually plays, after the assignment's client level (0..3). */
+export function effectiveDifficulty(difficulty: number, level: ClientLevel): 0 | 1 | 2 | 3 {
+  return Math.min(3, Math.max(0, difficulty + SHIFT[level])) as 0 | 1 | 2 | 3;
+}
+
+// "normal" adds nothing, so a normal session gets exactly the persona@2 text.
+const MOOD: Record<ClientLevel, string> = {
+  mudah: " Hari ini kamu santai dan senang diajak ngobrol: jawab dengan ramah dan sesekali ceritakan hal tentang usahamu tanpa ditanya.",
+  normal: "",
+  sulit: " Hari ini kamu sibuk dan agak curiga pada pewawancara: jawab seperlunya dan jangan menambahkan cerita yang tidak ditanya.",
+};
+
 /**
  * docs/ai-design.md §2. Same text for Gemini Live (locked in the ephemeral token) and the text
  * fallback, so the character stays consistent when a session falls back mid-way.
  */
-export function buildPersonaPrompt(input: PersonaInput): string {
+export function buildPersonaPrompt(input: PersonaInput, level: ClientLevel = "normal"): string {
   const p = input.persona;
   const lang = input.language === "en" ? "English" : "Bahasa Indonesia";
-  const facts = input.facts.map((f) => `[${f.id} | kesulitan ${f.difficulty}: ${DIFFICULTY_RULE[f.difficulty as 1 | 2 | 3]}] ${f.content}`).join("\n");
+  const facts = input.facts
+    .map((f) => {
+      const d = effectiveDifficulty(f.difficulty, level);
+      return `[${f.id} | kesulitan ${d}: ${DIFFICULTY_RULE[d]}] ${f.content}`;
+    })
+    .join("\n");
 
   return `Kamu adalah ${p.name}, ${p.age} tahun, ${p.occupation}. ${p.background}
 Kamu sedang diwawancarai oleh seorang ${input.learnerRole}. Tujuan mereka: ${input.objective}
-Selalu berbicara dalam ${lang}, walaupun pewawancara memakai bahasa lain. Gaya bicara: ${p.speakingStyle}. Sikap: ${p.attitude}.
+Selalu berbicara dalam ${lang}, walaupun pewawancara memakai bahasa lain. Gaya bicara: ${p.speakingStyle}. Sikap: ${p.attitude}.${MOOD[level]}
 
 ATURAN PERAN
 - Kamu klien sungguhan, bukan asisten. Jangan menawarkan bantuan, jangan merangkum kebutuhanmu sendiri, jangan mengusulkan solusi teknis.

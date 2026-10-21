@@ -31,7 +31,7 @@ flowchart LR
   D --> E[Uji coba / preview]
   E -->|perlu perbaikan| C
   E --> F[Terbitkan: versi n]
-  F --> G[Buat tugas di kelas]
+  F --> G[Buat tugas di kelas + pilih sikap klien]
   F --> H[Opsional: publik ke Pustaka]
   G --> I[Snapshot versi skenario disimpan di tugas]
 ```
@@ -98,5 +98,6 @@ Kalau grading gagal (error provider atau JSON tidak valid), sistem mencoba ulang
 Alurnya sama dengan sesi tugas, dengan tiga perbedaan:
 
 - Tidak ada tenggat atau batas percobaan; yang ada kuota harian (default 3 sesi per pelajar per hari).
+- Sikap klien selalu Normal (sikap Mudah/Sulit hanya untuk tugas, `docs/ai-design.md §2`).
 - Laporan langsung membuka semua fakta yang terlewat.
 - Nilai tidak masuk ke dashboard kelas.

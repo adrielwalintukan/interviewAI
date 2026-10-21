@@ -8,6 +8,7 @@ import { LEARNER_STATUS_LABEL, canSeeFactContent, missedFacts, scoreHistogram } 
 import { loadScenarioContent } from "@/features/interview/context";
 import { STATUS_LABEL } from "@/features/interview/session-history";
 import { FACT_CATEGORIES } from "@/features/scenario/schema";
+import { CLIENT_LEVEL_NAME } from "@/features/classroom/client-level";
 
 export const metadata = { title: "Hasil tugas — Interview AI" };
 
@@ -40,6 +41,7 @@ async function AssignmentResults({ params }: { params: PageProps<"/kelas/[id]/tu
         <DueLabel iso={a.due_at} />
         <DueState iso={a.due_at} />
         <span>{a.max_attempts}× percobaan</span>
+        <span>Sikap klien: {CLIENT_LEVEL_NAME[a.client_level]}</span>
       </p>
 
       {failed ? (
