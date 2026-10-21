@@ -138,7 +138,7 @@ async function Dashboard() {
     return (
       <section className="max-w-xl">
         <p className="font-mono text-label uppercase text-ochre">Menunggu persetujuan</p>
-        <h1 className="mt-3 font-display text-display font-medium tracking-tight">Halo, {user.displayName}.</h1>
+        <h1 className="mt-3 font-display text-display font-medium tracking-tight">Halo, {user.displayName}</h1>
         <p className="mt-4 text-lg text-ink-2">
           Akun pengajar Anda sedang ditinjau Admin institusi. Setelah disetujui, Anda bisa membuat kelas dan skenario.
         </p>
@@ -152,7 +152,7 @@ async function Dashboard() {
     <div className="grid gap-12 lg:grid-cols-12">
       <section className="lg:col-span-7">
         <p className="font-mono text-label uppercase text-accent">01 — {isAdmin ? "Semua kelas" : isTeacher ? "Kelas Anda" : "Kelasmu"}</p>
-        <h1 className="mt-3 font-display text-display font-medium tracking-tight">Halo, {user.displayName}.</h1>
+        <h1 className="mt-3 font-display text-display font-medium tracking-tight">Halo, {user.displayName}</h1>
         <div className="mt-8">
           {user.role === "pelajar" && <ReviewNotices user={user} />}
           <ClassList user={user} />

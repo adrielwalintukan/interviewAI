@@ -12,8 +12,7 @@ async function Form({ searchParams }: { searchParams: PageProps<"/masuk">["searc
 export default function MasukPage({ searchParams }: PageProps<"/masuk">) {
   return (
     <>
-      <p className="font-mono text-label uppercase text-accent">Masuk</p>
-      <h1 className="mt-3 font-display text-display font-medium tracking-tight">Selamat datang kembali.</h1>
+      <h1 className="font-display text-display font-medium tracking-tight">Masuk</h1>
       <Suspense>
         <Form searchParams={searchParams} />
       </Suspense>

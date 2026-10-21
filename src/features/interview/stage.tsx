@@ -120,7 +120,7 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
         player.current ??= new PcmPlayer();
         await player.current.resume();
       } catch {
-        setNotice("Suara karakter sedang tidak tersedia — baca jawabannya di transkrip.");
+        setNotice("Suara karakter sedang tidak tersedia. Baca jawabannya di transkrip.");
         return setActivity("idle");
       }
       setActivity("speaking");
@@ -164,7 +164,7 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
     if (grant.mode !== "live") {
       return goFallback(
         grant.reason === "busy"
-          ? "Jalur suara langsung sedang penuh. Kami pakai mode hemat — wawancara tetap jalan."
+          ? "Koneksi suara sedang penuh. Kami pindah ke mode hemat; wawancara tetap lanjut."
           : grant.reason === "closed"
             ? "Sesi sudah berakhir."
             : "Suara langsung tidak tersedia. Mode hemat aktif.",
@@ -185,7 +185,7 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
         try {
           mic.current = await startMic((pcm) => live.current?.sendAudio(bytesToBase64(pcm)));
         } catch {
-          setNotice("Mikrofon tidak tersedia — ketik pertanyaanmu di bawah.");
+          setNotice("Mikrofon tidak tersedia. Ketik pertanyaanmu di bawah.");
         }
         if (turnCount.current === 0) live.current?.sendText(OPEN_CUE);
       },
@@ -330,7 +330,7 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
           : activity === "listening"
             ? `${first} mendengarkan`
             : phase === "live"
-              ? `${first} menunggu pertanyaanmu — bicara saja`
+              ? `${first} menunggu pertanyaanmu. Silakan bicara.`
               : `${first} menunggu pertanyaanmu`;
   const lowTime = remaining !== null && remaining < 60_000;
   const canTalk = phase === "live" || (phase === "fallback" && stt);
@@ -345,7 +345,7 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
         <div className="flex items-center gap-3">
           {(phase === "live" || phase === "fallback") && (
             <span
-              title={phase === "live" ? "Suara dua arah realtime" : "Pengenal suara browser + suara karakter dari server"}
+              title={phase === "live" ? "Suara dua arah langsung" : "Suaramu diubah jadi teks di browser, jawaban karakter dibacakan"}
               className={`rounded-full border px-3 py-1 font-mono text-label uppercase ${phase === "live" ? "border-live/60 text-live" : "border-white/20 text-stage-ink-2"}`}
             >
               {phase === "live" ? "● Live" : "Mode hemat"}
@@ -382,7 +382,7 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
           {phase === "ready" && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-5 bg-stage/80 px-6 text-center backdrop-blur-[2px]">
               <p className="max-w-sm text-stage-ink-2">
-                {first} sudah menunggu. Waktu berjalan sejak sesi dibuat — mulai sekarang.
+                {first} sudah menunggu. Waktu sudah berjalan sejak sesi dibuat.
               </p>
               <button type="button" onClick={begin} autoFocus className="min-h-14 rounded-full bg-accent px-8 text-lg font-medium text-accent-ink hover:bg-stage-ink hover:text-stage">
                 Mulai wawancara
@@ -458,10 +458,10 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
             </div>
             <p className="mt-2 text-xs text-stage-ink-2">
               {phase === "live"
-                ? "Bicara langsung — kamu boleh memotong. Tombol mikrofon untuk membisukan."
+                ? "Bicara langsung; kamu boleh memotong jawaban. Tekan tombol mikrofon untuk membisukan."
                 : stt
                   ? "Tekan mikrofon, bicara, lalu tunggu jawaban. Esc untuk mengakhiri."
-                  : "Browser ini tidak mendukung pengenal suara — ketik pertanyaanmu (Chrome/Edge disarankan)."}
+                  : "Browser ini tidak mendukung input suara. Ketik pertanyaanmu, atau buka di Chrome/Edge."}
             </p>
           </div>
         </aside>

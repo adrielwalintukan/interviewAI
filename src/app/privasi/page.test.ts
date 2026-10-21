@@ -24,8 +24,8 @@ describe("PrivasiPage", () => {
     expect(html).toContain("Undang-Undang No. 27 Tahun 2022");
 
     // Memverifikasi jaminan ADR-004: audio mikrofon tidak pernah disimpan
-    expect(html).toContain("Jaminan Utama: Rekaman Audio Mikrofon Tidak Pernah Disimpan");
-    expect(html).toContain("Server kami tidak menerima maupun menyimpan rekaman audio");
+    expect(html).toContain("Rekaman suaramu tidak pernah disimpan");
+    expect(html).toContain("Server kami tidak menerima maupun menyimpan rekaman dari mikrofonmu");
     expect(html).toContain("Tidak pernah disimpan");
 
     // Memverifikasi akurasi teknis hash bcrypt (Finding 1 PM review)

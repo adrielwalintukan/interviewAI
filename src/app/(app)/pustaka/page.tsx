@@ -127,10 +127,9 @@ async function LibraryHistory() {
 export default function PustakaPage() {
   return (
     <>
-      <p className="font-mono text-label uppercase text-accent">Pustaka skenario</p>
-      <h1 className="mt-3 max-w-3xl font-display text-display font-medium tracking-tight">Klien dari ruang kelas lain.</h1>
+      <h1 className="max-w-3xl font-display text-display font-medium tracking-tight">Pustaka skenario</h1>
       <p className="mt-4 max-w-2xl text-ink-2">
-        Skenario yang dibagikan pengajar. Fakta tersembunyi dan rubrik tetap rahasia — yang terlihat hanya brief wawancaranya.
+        Skenario yang dibagikan para pengajar. Yang ditampilkan hanya brief wawancaranya; fakta tersembunyi dan rubrik tidak.
       </p>
       <div className="mt-10">
         <Suspense fallback={<div className="h-64 animate-pulse rounded-md bg-paper-2" />}>

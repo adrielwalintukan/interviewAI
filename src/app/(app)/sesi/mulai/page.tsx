@@ -127,7 +127,7 @@ async function Lobby({ searchParams }: { searchParams: PageProps<"/sesi/mulai">[
           <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-ink-2">
             <li>Pakai earphone bila ada, di tempat yang cukup tenang.</li>
             <li>Mulai dengan perkenalan, lalu ajukan pertanyaan terbuka (“bagaimana…”, “ceritakan…”).</li>
-            <li>Gali lebih dalam setiap jawaban yang menarik — klien tidak akan bercerita semuanya sendiri.</li>
+            <li>Tanyakan lebih lanjut setiap jawaban yang menarik. Klien tidak akan menceritakan semuanya sendiri.</li>
             <li>Tutup dengan merangkum kebutuhan yang kamu dengar.</li>
           </ol>
           <div className="mt-8">

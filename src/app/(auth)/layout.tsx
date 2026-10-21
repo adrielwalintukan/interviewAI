@@ -14,7 +14,6 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           </p>
           <footer className="mt-4 font-mono text-label uppercase text-ink-2">— Bu Ratna, pemilik laundry</footer>
         </blockquote>
-        <p className="mt-6 hidden font-mono text-label uppercase text-ink-2 md:block">Ruang latihan elisitasi</p>
       </aside>
       <main className="flex items-start justify-center px-4 py-10 sm:px-8 md:items-center">
         <div className="w-full max-w-sm">{children}</div>

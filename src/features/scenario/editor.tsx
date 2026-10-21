@@ -249,7 +249,7 @@ export function ScenarioEditor({
       </aside>
 
       <div className="min-w-0">
-        <Section id="brief" n={1} title="Brief & AI" intro="Ceritakan situasinya dalam beberapa kalimat. AI menyiapkan persona, fakta tersembunyi, dan rubrik — Anda tetap bisa mengubah semuanya.">
+        <Section id="brief" n={1} title="Brief & AI" intro="Tulis situasinya dalam beberapa kalimat. AI menyiapkan persona, fakta tersembunyi, dan rubrik, lalu Anda bisa mengubah semuanya.">
           <div className="grid gap-5">
             <TextArea
               id="summary"
