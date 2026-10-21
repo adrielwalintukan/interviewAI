@@ -388,8 +388,17 @@ export function ScenarioEditor({
           {chosen?.vrm_url && (
             <div className="mt-6">
               {/* US-G-05: three.js loads only after this click, so the editor's own bundle stays small. */}
-              {previewing === chosen.id ? (
-                <div className="h-80 w-full max-w-sm overflow-hidden rounded-md border border-rule bg-paper-2">
+              {/* One toggle button for open and close, so keyboard focus never jumps. */}
+              <button
+                type="button"
+                aria-expanded={previewing === chosen.id}
+                onClick={() => setPreviewing(previewing === chosen.id ? undefined : chosen.id)}
+                className={buttonClass("ghost")}
+              >
+                {previewing === chosen.id ? "Tutup pratinjau" : `Lihat animasi ${chosen.name}`}
+              </button>
+              {previewing === chosen.id && (
+                <div className="mt-3 h-80 w-full max-w-sm overflow-hidden rounded-md border border-rule bg-paper-2">
                   <Avatar
                     url={chosen.vrm_url}
                     pose="idle"
@@ -400,10 +409,6 @@ export function ScenarioEditor({
                     }
                   />
                 </div>
-              ) : (
-                <button type="button" onClick={() => setPreviewing(chosen.id)} className={buttonClass("ghost")}>
-                  Lihat animasi {chosen.name}
-                </button>
               )}
             </div>
           )}
