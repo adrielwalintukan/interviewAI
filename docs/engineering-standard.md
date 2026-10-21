@@ -120,7 +120,7 @@ gitGraph
 
 **Pengukuran.** `npm run build` + `npm start`, lalu Lighthouse mode mobile dengan profil bawaan (1,6 Mbps, RTT 150 ms, CPU 4×, setara "Slow 4G") dan **throttling diterapkan sungguhan** (`--throttling-method=devtools`), cache dingin, median 3 run. Simulasi bawaan Lighthouse (`simulate`) lebih pesimis karena menghitung semua byte yang diminta sebelum LCP, termasuk JS async. Halaman yang butuh login diukur di Chrome yang sudah login (`--port`, `--disable-storage-reset`, cache dikosongkan sebelum tiap run). Target awal < 2.5 dtk tidak tercapai tanpa perubahan besar (#45); target sementara < 3.0 dtk diputuskan pemilik repo (2026-10-21).
 
-Hasil 2026-10-21, build produksi lokal ke Supabase hosted (#25, #45):
+Hasil 2026-10-21, build produksi lokal ke Supabase hosted (#25, #45). Status ✅/❌ dinilai dari median 3 run; rentang menunjukkan variasi antar-run, bukan berarti setiap run memenuhi budget.
 
 | Halaman | LCP median (rentang) | JS awal (gzip) |
 |---|---|---|
