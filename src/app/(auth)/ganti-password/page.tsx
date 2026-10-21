@@ -9,7 +9,7 @@ async function Intro() {
   return (
     <p className="mt-4 text-ink-2">
       {user.mustChangePassword
-        ? `Halo ${user.displayName}. Password awal dari pengajar hanya untuk sekali pakai — buat password milikmu sendiri.`
+        ? `Halo ${user.displayName}. Password awal dari pengajar hanya untuk sekali pakai. Buat password baru milikmu sendiri.`
         : "Buat password baru untuk akunmu."}
     </p>
   );
@@ -18,8 +18,7 @@ async function Intro() {
 export default function GantiPasswordPage() {
   return (
     <>
-      <p className="font-mono text-label uppercase text-accent">Keamanan akun</p>
-      <h1 className="mt-3 font-display text-display font-medium tracking-tight">Ganti password.</h1>
+      <h1 className="font-display text-display font-medium tracking-tight">Ganti password</h1>
       <Suspense fallback={<p className="mt-4 h-12 animate-pulse rounded-sm bg-paper-2" />}>
         <Intro />
       </Suspense>

@@ -108,7 +108,7 @@ export async function changePassword(_: FormState, form: FormData): Promise<Form
   if (error) {
     return { error: error.code === "same_password"
           ? "Password baru harus berbeda dari yang lama."
-          : "Gagal mengganti password. Sesi mungkin sudah berakhir — keluar, lalu masuk lagi." };
+          : "Gagal mengganti password. Sesi mungkin sudah berakhir. Keluar, lalu masuk lagi." };
   }
   // must_change_password isn't user-writable (column grant), so clear it with the service role.
   if (user.mustChangePassword) {

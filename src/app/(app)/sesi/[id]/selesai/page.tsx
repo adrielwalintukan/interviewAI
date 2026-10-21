@@ -257,7 +257,7 @@ async function Summary({ params }: { params: PageProps<"/sesi/[id]/selesai">["pa
         {!running && s.status !== "graded" && (
           <p role="status" className="mt-8 border-l-2 border-ochre pl-4 text-sm text-ink-2 print:hidden">
             {pending
-              ? "Penilaian sedang diproses — biasanya kurang dari satu menit. Halaman ini akan diperbarui sendiri."
+              ? "Penilaian sedang diproses, biasanya kurang dari satu menit. Halaman ini akan diperbarui otomatis."
               : s.status === "grading_failed"
                 ? canRegrade
                   ? "Penilaian gagal diproses. Transkrip sudah tersimpan; coba nilai ulang."

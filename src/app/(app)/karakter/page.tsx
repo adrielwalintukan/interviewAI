@@ -72,7 +72,7 @@ export default function KarakterPage() {
   return (
     <>
       <p className="font-mono text-label uppercase text-accent">Admin</p>
-      <h1 className="mt-3 font-display text-display font-medium tracking-tight">Karakter.</h1>
+      <h1 className="mt-3 font-display text-display font-medium tracking-tight">Karakter</h1>
       <Suspense fallback={<div className="mt-8 h-64 animate-pulse rounded-md bg-paper-2" />}>
         <CharacterList />
       </Suspense>

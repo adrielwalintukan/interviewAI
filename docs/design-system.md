@@ -161,6 +161,10 @@ Basisnya shadcn/ui, tapi semua komponen di-restyle memakai tokens di atas. Tidak
   - Tombol mulai: "Masuk ruang wawancara".
   - Mode hemat: "Koneksi suara sedang penuh. Kami pindah ke mode hemat; wawancara tetap lanjut."
 - **Pesan error.** Jelaskan apa yang terjadi, lalu apa yang bisa dilakukan. Jangan pernah menampilkan kode error mentah.
+- **Judul menyebut isi halaman** ("Pustaka skenario", "Ganti password"), bukan slogan ("Klien dari ruang kelas lain."). Tanpa titik di akhir judul.
+- **Label kecil di atas judul** hanya dipakai bila menambah konteks (mis. "Admin" di atas "Karakter"). Jangan mengulang judul, dan jangan memakai label dekoratif tanpa isi ("Catatan pinggir").
+- **Tanpa tanda pisah (—) di tengah kalimat.** Pecah jadi dua kalimat, atau pakai koma/titik koma. Tanda pisah boleh untuk nomor bagian ("01 — Tugas") dan pemisah judul.
+- **Tanpa istilah internal** (nama milestone, nama provider, istilah teknis) di teks untuk pelajar dan pengajar.
 
 ## 9. Aset karakter
 

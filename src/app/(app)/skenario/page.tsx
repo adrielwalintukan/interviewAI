@@ -55,8 +55,7 @@ export default function SkenarioPage() {
   return (
     <div className="grid gap-10 lg:grid-cols-12">
       <section className="lg:col-span-8">
-        <p className="font-mono text-label uppercase text-accent">Skenario Anda</p>
-        <h1 className="mt-3 font-display text-display font-medium tracking-tight">Klien yang menunggu diwawancarai.</h1>
+        <h1 className="font-display text-display font-medium tracking-tight">Skenario Anda</h1>
         <div className="mt-8">
           <Suspense fallback={<div className="h-40 animate-pulse rounded-md bg-paper-2" />}>
             <ScenarioList />
@@ -64,7 +63,7 @@ export default function SkenarioPage() {
         </div>
       </section>
       <aside className="lg:col-span-4 lg:border-l lg:border-rule lg:pl-8">
-        <p className="font-mono text-label uppercase text-ink-2">Mulai baru</p>
+        <p className="font-mono text-label uppercase text-ink-2">Buat skenario</p>
         <p className="mt-3 text-ink-2">Draf tersimpan otomatis. Terbitkan saat siap, lalu berikan ke kelas sebagai tugas.</p>
         <form action={createScenario} className="mt-5">
           <SubmitButton variant="accent" pending="Menyiapkan…">

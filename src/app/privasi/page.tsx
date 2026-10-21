@@ -30,14 +30,13 @@ export default function PrivasiPage() {
       <main className="mx-auto max-w-4xl px-4 py-10 sm:px-8 sm:py-16">
         <article className="space-y-10">
           <header className="border-b border-rule pb-8">
-            <p className="font-mono text-label uppercase text-accent">Dokumen Resmi</p>
-            <h1 className="mt-2 font-display text-display font-medium tracking-tight">
+            <h1 className="font-display text-display font-medium tracking-tight">
               Kebijakan Privasi
             </h1>
             <p className="mt-4 text-lg leading-relaxed text-ink-2">
-              Interview AI dirancang sebagai ruang latihan wawancara elisitasi kebutuhan bagi pelajar sekolah dan mahasiswa.
-              Kami mengutamakan pelindungan data pribadi dan transparansi penuh sesuai prinsip Undang-Undang No. 27 Tahun 2022
-              tentang Pelindungan Data Pribadi (UU PDP).
+              Interview AI adalah tempat pelajar sekolah dan mahasiswa berlatih wawancara kebutuhan. Halaman ini menjelaskan
+              data apa yang kami simpan, untuk apa, dan berapa lama, mengacu pada Undang-Undang No. 27 Tahun 2022 tentang
+              Pelindungan Data Pribadi (UU PDP).
             </p>
             <p className="mt-2 font-mono text-xs text-ink-2">
               Terakhir diperbarui: Oktober 2026
@@ -47,12 +46,13 @@ export default function PrivasiPage() {
           {/* Kotak Jaminan Suara (ADR-004) */}
           <section className="rounded-md border border-moss/40 bg-moss/5 p-5 text-sm leading-relaxed">
             <h2 className="font-display text-base font-semibold text-moss">
-              Jaminan Utama: Rekaman Audio Mikrofon Tidak Pernah Disimpan
+              Rekaman suaramu tidak pernah disimpan
             </h2>
             <p className="mt-2 text-ink">
-              Server kami tidak menerima maupun menyimpan rekaman audio dari mikrofon perangkat kamu.
-              Suara hanya dialirkan secara langsung untuk proses percakapan AI waktu-nyata atau diubah menjadi teks melalui
-              peramban. Yang disimpan dalam sistem kami hanyalah transkrip teks percakapan untuk keperluan penilaian belajar.
+              Aplikasi ini tidak menyimpan rekaman suaramu, dan server kami tidak menerimanya. Di mode suara langsung,
+              suaramu dikirim dari browser langsung ke Google Gemini selama percakapan. Di mode hemat, suaramu diubah
+              menjadi teks oleh fitur pengenal suara bawaan browser. Dari percakapan, yang kami simpan hanya transkrip
+              teksnya untuk penilaian. Data lain yang kami simpan dijelaskan di tabel di bawah.
             </p>
           </section>
 
@@ -183,7 +183,7 @@ export default function PrivasiPage() {
               5. Keamanan dan Kerahasiaan Skenario
             </h2>
             <p className="text-ink leading-relaxed">
-              Data skenario latihan memiliki proteksi berlapis. Fakta tersembunyi, instruksi persona karakter, dan rubrik rahasia dikunci di server dan tidak pernah dikirimkan ke peramban pelajar. Hal ini memastikan proses latihan elisitasi berjalan objektif dan adil bagi seluruh peserta.
+              Fakta tersembunyi, instruksi persona karakter, dan rubrik hanya disimpan dan diproses di server. Semuanya tidak pernah dikirim ke browser pelajar, sehingga tidak bisa diintip sebelum atau selama wawancara.
             </p>
           </section>
 
@@ -200,7 +200,7 @@ export default function PrivasiPage() {
                 <strong className="text-ink">Pelajar dan Orang Tua:</strong> Silakan hubungi Pengajar atau Administrator Sekolah / Kampus tempat kelas kamu terdaftar.
               </li>
               <li>
-                <strong className="text-ink">Pengelola Institusi & Teknis:</strong> Untuk pertanyaan teknis implementasi platform atau laporan keamanan, hubungi tim pengembang proyek Interview AI melalui halaman repositori resmi.
+                <strong className="text-ink">Pengelola Institusi & Teknis:</strong> Untuk pertanyaan teknis atau laporan celah keamanan, hubungi tim pengembang Interview AI.
               </li>
             </ul>
           </section>
@@ -209,7 +209,6 @@ export default function PrivasiPage() {
             <Link href="/" className="inline-flex min-h-11 items-center underline-offset-4 hover:text-ink hover:underline">
               ← Kembali ke Beranda
             </Link>
-            <p className="font-mono text-xs">Interview AI - Platform Latihan Elisitasi Kebutuhan</p>
           </footer>
         </article>
       </main>
