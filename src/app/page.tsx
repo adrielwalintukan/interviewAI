@@ -17,10 +17,11 @@ export default function Home() {
         </nav>
       </header>
 
-      <section className="grid flex-1 gap-10 py-16 md:grid-cols-12 md:py-24">
+      <section className="grid flex-1 content-center gap-10 py-12 md:grid-cols-12 md:py-6">
         <div className="md:col-span-8">
           <p className="mb-6 font-mono text-label uppercase text-accent">Latihan wawancara kebutuhan</p>
-          <h1 className="font-display text-display-xl text-balance hyphens-auto break-words font-medium tracking-tight [font-variation-settings:'SOFT'_50]">
+          {/* display-xl, also capped by viewport height so the landing fits one screen without scrolling */}
+          <h1 className="font-display text-[clamp(2.75rem,min(1.5rem+6vw,9dvh),6rem)] leading-[0.95] text-balance hyphens-auto break-words font-medium tracking-tight [font-variation-settings:'SOFT'_50]">
             Klien tidak pernah menyebut <span className="stabilo">semua</span> kebutuhannya.
           </h1>
           <p className="mt-8 max-w-xl text-lg leading-relaxed text-ink-2">
