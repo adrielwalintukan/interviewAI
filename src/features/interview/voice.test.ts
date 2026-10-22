@@ -21,6 +21,35 @@ const fetchMock = vi.fn();
 vi.stubGlobal("fetch", fetchMock);
 const { speakLastReply } = await import("./voice");
 
+const reply = (audio: Buffer) =>
+  fetchMock.mockResolvedValue(
+    new Response(JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { data: audio.toString("base64") } }] } }] })),
+  );
+
+/** Minimal WAV as Gemini TTS sends it: fmt + data, optionally followed by another chunk (C2PA). */
+function wav({ pcm, rate = 24000, extra }: { pcm: Buffer; rate?: number; extra?: Buffer }): Buffer {
+  const fmt = Buffer.alloc(24);
+  fmt.write("fmt ", 0);
+  fmt.writeUInt32LE(16, 4);
+  fmt.writeUInt16LE(1, 8); // PCM
+  fmt.writeUInt16LE(1, 10); // mono
+  fmt.writeUInt32LE(rate, 12);
+  fmt.writeUInt32LE(rate * 2, 16);
+  fmt.writeUInt16LE(2, 20);
+  fmt.writeUInt16LE(16, 22);
+  const chunk = (id: string, body: Buffer) => {
+    const head = Buffer.alloc(8);
+    head.write(id, 0);
+    head.writeUInt32LE(body.length, 4);
+    return Buffer.concat([head, body, Buffer.alloc(body.length & 1)]);
+  };
+  const body = Buffer.concat([Buffer.from("WAVE"), fmt, chunk("data", pcm), ...(extra ? [chunk("C2PA", extra)] : [])]);
+  const head = Buffer.alloc(8);
+  head.write("RIFF", 0);
+  head.writeUInt32LE(body.length, 4);
+  return Buffer.concat([head, body]);
+}
+
 beforeEach(() => {
   state.session = true;
   state.lastReply = "Selamat pagi.";
@@ -60,6 +89,24 @@ describe("speakLastReply", () => {
     expect(await speakLastReply(SESSION)).toEqual({ audio: null });
     expect(fetchMock).not.toHaveBeenCalled();
     expect(logCall).toHaveBeenCalledWith({ task: "tts", provider: "gemini", model: "", latencyMs: 0, status: "unconfigured", sessionId: SESSION });
+  });
+
+  it("plays a WAV answer as its data chunk only, dropping the header and the trailing C2PA chunk", async () => {
+    const pcm = Buffer.from([1, 0, 2, 0, 3, 0]);
+    reply(wav({ pcm, extra: Buffer.from("C2PA-provenance") }));
+    expect(await speakLastReply(SESSION)).toEqual({ audio: pcm.toString("base64") });
+  });
+
+  it("passes raw PCM (no RIFF header) through unchanged", async () => {
+    const pcm = Buffer.from([9, 0, 8, 0]).toString("base64");
+    reply(Buffer.from(pcm, "base64"));
+    expect(await speakLastReply(SESSION)).toEqual({ audio: pcm });
+  });
+
+  it("falls back to text only for a WAV that isn't mono 24 kHz 16-bit", async () => {
+    reply(wav({ pcm: Buffer.from([1, 0]), rate: 44100 }));
+    expect(await speakLastReply(SESSION)).toEqual({ audio: null });
+    expect(logCall).toHaveBeenCalledWith(expect.objectContaining({ task: "tts", status: "error" }));
   });
 
   it("falls back to text only when the TTS fails or the quota is exhausted", async () => {

@@ -13,7 +13,7 @@ const GEMINI = "https://generativelanguage.googleapis.com";
  * so the character never changes voice (browser voices can't match language/gender reliably).
  * Takes no text from the browser: only the latest stored character reply of the caller's own active
  * session, at most once per reply (`claim_tts`).
- * Returns base64 PCM16 24 kHz, or null ⇒ the stage shows text only.
+ * Returns base64 raw PCM16 24 kHz mono (WAV header stripped, see `pcmOf`), or null ⇒ the stage shows text only.
  */
 export async function speakLastReply(sessionId: string): Promise<{ audio: string | null }> {
   const user = await requireUser({ roles: ["pelajar", "pengajar"] });
@@ -54,11 +54,38 @@ export async function speakLastReply(sessionId: string): Promise<{ audio: string
       return { audio: null };
     }
     const body = (await res.json()) as { candidates?: { content?: { parts?: { inlineData?: { data?: string } }[] } }[] };
-    const audio = body.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data ?? null;
+    const data = body.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    const audio = data ? pcmOf(data) : null;
     await log(audio ? "ok" : "error");
     return { audio };
   } catch (err) {
     await log(isTimeoutError(err) ? "timeout" : "error");
     return { audio: null };
   }
+}
+
+/**
+ * The TTS model may answer with a whole WAV file (fmt + data + a C2PA provenance chunk) instead of raw PCM.
+ * Played as raw PCM, its header and the C2PA bytes crackle at the start and end of every line, so keep only
+ * the `data` chunk. Non-WAV payloads pass through as raw PCM; a WAV that isn't mono 24 kHz 16-bit ⇒ null.
+ */
+function pcmOf(b64: string): string | null {
+  const buf = Buffer.from(b64, "base64");
+  if (buf.toString("latin1", 0, 4) !== "RIFF" || buf.toString("latin1", 8, 12) !== "WAVE") return b64;
+  let fmtOk = false;
+  let o = 12;
+  while (o + 8 <= buf.length) {
+    const id = buf.toString("latin1", o, o + 4);
+    const size = buf.readUInt32LE(o + 4);
+    if (id === "fmt " && o + 24 <= buf.length) {
+      fmtOk =
+        buf.readUInt16LE(o + 8) === 1 && // PCM
+        buf.readUInt16LE(o + 10) === 1 && // mono
+        buf.readUInt32LE(o + 12) === 24000 &&
+        buf.readUInt16LE(o + 22) === 16;
+    }
+    if (id === "data") return fmtOk ? buf.subarray(o + 8, o + 8 + size).toString("base64") : null;
+    o += 8 + size + (size & 1); // chunks are word-aligned
+  }
+  return null;
 }
