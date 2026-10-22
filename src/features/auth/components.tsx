@@ -36,6 +36,12 @@ export function SignInForm({ next, error }: { next?: string; error?: string }) {
         <Field label="Email atau username" name="identifier" autoComplete="username" required autoFocus defaultValue={state?.values?.identifier} />
         <Field label="Password" name="password" type="password" autoComplete="current-password" required />
         {error === "google" && <Notice>Masuk dengan Google gagal. Coba lagi.</Notice>}
+        {error === "peran-ditolak" && (
+          <Notice>Akun Google ini sudah terdaftar sebagai pelajar. Masuk lagi untuk memakainya, atau hubungi admin institusi bila Anda pengajar.</Notice>
+        )}
+        {error === "peran-gagal" && (
+          <Notice>Pendaftaran sebagai pengajar gagal. Ulangi lewat Daftar → Pengajar, atau hubungi admin institusi.</Notice>
+        )}
         {error === "konfirmasi" && (
           <Notice>Link konfirmasi tidak berlaku lagi. Coba masuk; bila belum bisa, daftar ulang dengan email yang sama untuk mendapat link baru.</Notice>
         )}

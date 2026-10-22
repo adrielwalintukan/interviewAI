@@ -10,6 +10,12 @@ import { loginIdentifierToEmail, safeNextPath } from "./identifier";
 
 // `values` echoes non-secret fields back: React 19 resets a form after its action, and
 // inputs read them as defaultValue so a failed submit doesn't wipe what the user typed.
+// Absolute base for Supabase redirect links. Next.js aborts a Server Action whose Origin doesn't match the host, and
+// Supabase only follows redirects on its allow list; a request without Origin (handcrafted) gets no link at all.
+async function requestOrigin(): Promise<string | null> {
+  return (await headers()).get("origin");
+}
+
 export type FormState =
   | { error?: string; fieldErrors?: Record<string, string>; ok?: string; values?: Record<string, string> }
   | undefined;
@@ -58,7 +64,8 @@ export async function signUp(_: FormState, form: FormData): Promise<FormState> {
   if (!parsed.success) return { fieldErrors: fieldErrors(parsed.error), values };
   const { displayName, email, password: pass, role } = parsed.data;
 
-  const origin = (await headers()).get("origin") ?? "";
+  const origin = await requestOrigin();
+  if (!origin) return { error: "Pendaftaran gagal. Coba lagi sebentar lagi.", values };
   const supabase = await createClient();
   // role is only a request: the DB trigger makes "pengajar" pending and never grants admin.
   // emailRedirectTo is {{ .RedirectTo }} in the confirmation email, so staging links come back to staging.
@@ -79,7 +86,8 @@ export async function signUp(_: FormState, form: FormData): Promise<FormState> {
 
 export async function signInWithGoogle(form: FormData): Promise<void> {
   if (process.env.NEXT_PUBLIC_AUTH_GOOGLE_ENABLED !== "true") redirect("/masuk");
-  const origin = (await headers()).get("origin") ?? "";
+  const origin = await requestOrigin();
+  if (!origin) redirect("/masuk?error=google");
   const next = safeNextPath(form.get("next"));
   const role = form.get("role") === "pengajar" ? "&peran=pengajar" : "";
   const supabase = await createClient();

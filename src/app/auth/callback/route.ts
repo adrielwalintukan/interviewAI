@@ -18,8 +18,15 @@ export async function GET(request: NextRequest) {
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      // workflow §1: the role picked on /daftar before Google. The RPC only moves a brand-new account to pending.
-      if (searchParams.get("peran") === "pengajar") await supabase.rpc("request_teacher_role");
+      // workflow §1: the role picked on /daftar before Google. The RPC only moves a brand-new account to pending,
+      // and answers false for an existing pelajar. Never leave a silent pelajar behind a "Pengajar" choice.
+      if (searchParams.get("peran") === "pengajar") {
+        const { data, error: roleError } = await supabase.rpc("request_teacher_role");
+        if (roleError || data !== true) {
+          await supabase.auth.signOut();
+          return NextResponse.redirect(`${origin}/masuk?error=${roleError ? "peran-gagal" : "peran-ditolak"}`);
+        }
+      }
       return NextResponse.redirect(`${origin}${next}`);
     }
   }
