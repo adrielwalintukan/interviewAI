@@ -67,7 +67,7 @@ export async function speakLastReply(sessionId: string): Promise<{ audio: string
 /**
  * The TTS model may answer with a whole WAV file (fmt + data + a C2PA provenance chunk) instead of raw PCM.
  * Played as raw PCM, its header and the C2PA bytes crackle at the start and end of every line, so keep only
- * the `data` chunk. Non-WAV payloads pass through as raw PCM; a WAV that isn't mono 24 kHz 16-bit ⇒ null.
+ * the `data` chunk. Non-WAV payloads pass through as raw PCM; a truncated WAV or one that isn't mono 24 kHz 16-bit ⇒ null.
  */
 function pcmOf(b64: string): string | null {
   const buf = Buffer.from(b64, "base64");
@@ -77,7 +77,8 @@ function pcmOf(b64: string): string | null {
   while (o + 8 <= buf.length) {
     const id = buf.toString("latin1", o, o + 4);
     const size = buf.readUInt32LE(o + 4);
-    if (id === "fmt " && o + 24 <= buf.length) {
+    if (o + 8 + size > buf.length) return null; // truncated or malformed: text only, never partial audio
+    if (id === "fmt " && size >= 16) {
       fmtOk =
         buf.readUInt16LE(o + 8) === 1 && // PCM
         buf.readUInt16LE(o + 10) === 1 && // mono

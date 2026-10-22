@@ -109,6 +109,15 @@ describe("speakLastReply", () => {
     expect(logCall).toHaveBeenCalledWith(expect.objectContaining({ task: "tts", status: "error" }));
   });
 
+  it("falls back to text only for a truncated WAV instead of playing partial audio", async () => {
+    const full = wav({ pcm: Buffer.alloc(64, 1), extra: Buffer.from("C2PA-provenance") });
+    reply(full.subarray(0, 44 + 32)); // cut inside the data chunk
+    expect(await speakLastReply(SESSION)).toEqual({ audio: null });
+    reply(full.subarray(0, 12 + 8 + 10)); // cut inside the fmt chunk
+    expect(await speakLastReply(SESSION)).toEqual({ audio: null });
+    expect(logCall).toHaveBeenCalledWith(expect.objectContaining({ task: "tts", status: "error" }));
+  });
+
   it("falls back to text only when the TTS fails or the quota is exhausted", async () => {
     fetchMock.mockResolvedValue(new Response("{}", { status: 429 }));
     expect(await speakLastReply(SESSION)).toEqual({ audio: null });
