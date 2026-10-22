@@ -50,10 +50,10 @@ async function ClassList({ user }: { user: CurrentUser }) {
               <li key={c.id}>
                 <Link
                   href={`/kelas/${c.id}`}
-                  className="group grid grid-cols-[2.5rem_1fr_auto] items-baseline gap-3 py-4 transition-colors hover:bg-paper-2/60"
+                  className="group grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-baseline gap-3 py-4 transition-colors hover:bg-paper-2/60"
                 >
                   <span className="font-mono text-label text-ink-2">{String(i + 1).padStart(2, "0")}</span>
-                  <span className="font-display text-xl group-hover:text-accent">{c.name}</span>
+                  <span className="min-w-0 break-words font-display text-xl group-hover:text-accent">{c.name}</span>
                   {user.role !== "pelajar" && (
                     <span className="font-mono text-label uppercase text-ink-2">
                       {c.class_members.filter((m) => m.profiles?.role === "pelajar").length} pelajar
@@ -74,10 +74,10 @@ async function ClassList({ user }: { user: CurrentUser }) {
               <li key={c.id}>
                 <Link
                   href={`/kelas/${c.id}`}
-                  className="group grid grid-cols-[2.5rem_1fr_auto] items-baseline gap-3 py-3 text-ink-2 transition-colors hover:bg-paper-2/60 hover:text-ink"
+                  className="group grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-baseline gap-3 py-3 text-ink-2 transition-colors hover:bg-paper-2/60 hover:text-ink"
                 >
                   <span className="font-mono text-label text-ink-2">{String(i + 1).padStart(2, "0")}</span>
-                  <span className="font-display text-lg group-hover:text-accent">
+                  <span className="min-w-0 break-words font-display text-lg group-hover:text-accent">
                     {c.name}
                     <span className="ml-2 font-mono text-label uppercase text-ink-2">diarsipkan</span>
                   </span>

@@ -37,9 +37,9 @@ async function ScenarioList() {
     <ol className="divide-y divide-rule border-y border-rule">
       {rows.map((s, i) => (
         <li key={s.id}>
-          <Link href={`/skenario/${s.id}`} className="group grid grid-cols-[2.5rem_1fr] gap-x-3 gap-y-1 py-4 hover:bg-paper-2/60 sm:grid-cols-[2.5rem_1fr_auto]">
+          <Link href={`/skenario/${s.id}`} className="group grid grid-cols-[2.5rem_minmax(0,1fr)] gap-x-3 gap-y-1 py-4 hover:bg-paper-2/60 sm:grid-cols-[2.5rem_minmax(0,1fr)_auto]">
             <span className="font-mono text-label text-ink-2">{String(i + 1).padStart(2, "0")}</span>
-            <span className="font-display text-xl group-hover:text-accent">{s.title}</span>
+            <span className="min-w-0 break-words font-display text-xl group-hover:text-accent">{s.title}</span>
             <span className="col-start-2 flex flex-wrap gap-x-3 font-mono text-label uppercase text-ink-2 sm:col-start-3 sm:justify-end">
               {s.current ? <span className="text-moss">Terbit v{s.current.version}</span> : <span className="text-ochre">Draf</span>}
               {s.is_public && <span>Publik</span>}
