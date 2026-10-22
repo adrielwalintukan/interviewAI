@@ -27,9 +27,9 @@ export default function VrmAvatar(props: VrmAvatarProps) {
   // architecture §5: pixel ratio capped at 1.5 on touch devices.
   const dprMax = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches ? 1.5 : 2;
   return (
-    <Canvas dpr={[1, dprMax]} camera={{ fov: FOV, near: 0.1, far: 20 }} gl={{ alpha: true, antialias: true }} aria-hidden>
-      <ambientLight intensity={1.4} />
-      <directionalLight position={[0.6, 1.6, 2]} intensity={1.6} />
+    // flat: R3F's default ACES tone mapping washes out MToon (toon) colors. One light at π, as in three-vrm's examples.
+    <Canvas flat dpr={[1, dprMax]} camera={{ fov: FOV, near: 0.1, far: 20 }} gl={{ alpha: true, antialias: true }} aria-hidden>
+      <directionalLight position={[1, 1, 1]} intensity={Math.PI} />
       <Model {...props} />
     </Canvas>
   );
