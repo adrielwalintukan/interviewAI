@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Avatar } from "@/features/avatar/avatar";
 import { CharacterPortrait } from "@/features/scenario/character-portrait";
+import { openCue } from "@/lib/llm/prompts/persona";
 import { chatTurn, endSession, logTurn, releaseLive, requestLiveToken } from "./actions";
 import { PcmPlayer, bytesToBase64, startMic, type Mic } from "./audio";
 import { listenOnce, sttSupported } from "./fallback-speech";
@@ -24,8 +25,6 @@ export type StageProps = {
 };
 
 const noSubscribe = () => () => {};
-
-const OPEN_CUE = "(Pewawancara masuk ruangan. Sapa dengan kalimat pembukamu.)";
 
 function fmt(ms: number) {
   const s = Math.max(0, Math.ceil(ms / 1000));
@@ -191,7 +190,7 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
         } catch {
           setNotice("Mikrofon tidak tersedia. Ketik pertanyaanmu di bawah.");
         }
-        if (turnCount.current === 0) live.current?.sendText(OPEN_CUE);
+        if (turnCount.current === 0) live.current?.sendText(openCue());
       },
       onAudio: (b64) => {
         player.current?.play(b64);

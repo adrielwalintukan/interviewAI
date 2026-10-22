@@ -10,6 +10,7 @@ export type SessionRow = {
   kind: "assignment" | "library" | "preview";
   mode: "live" | "fallback";
   status: string;
+  started_at: string;
   ends_at: string;
   scenario_version_id: string;
   assignment: { client_level: ClientLevel } | null;
@@ -23,7 +24,7 @@ export async function loadOwnActiveSession(sessionId: string, userId: string) {
   const supabase = await createClient();
   const { data: session } = await supabase
     .from("sessions")
-    .select("id, user_id, kind, mode, status, ends_at, scenario_version_id, assignment:assignments(client_level)")
+    .select("id, user_id, kind, mode, status, started_at, ends_at, scenario_version_id, assignment:assignments(client_level)")
     .eq("id", sessionId)
     .eq("user_id", userId)
     .maybeSingle<SessionRow>();
@@ -32,8 +33,15 @@ export async function loadOwnActiveSession(sessionId: string, userId: string) {
   const scenario = await loadScenarioContent(session.scenario_version_id);
   if (!scenario) return null;
   // Library practice and teacher previews have no assignment: always "normal" (issue #49).
-  return { supabase, session, clientLevel: session.assignment?.client_level ?? ("normal" as ClientLevel), ...scenario };
+  return { supabase, session, minutes: sessionMinutes(session), clientLevel: session.assignment?.client_level ?? ("normal" as ClientLevel), ...scenario };
 }
+
+/**
+ * Total session length for the persona prompt, which replaces whatever the scenario text says. Not the time left:
+ * Live locks the prompt into the token at the start (ADR-002), so it could never be kept current.
+ */
+export const sessionMinutes = (s: Pick<SessionRow, "started_at" | "ends_at">) =>
+  Math.round((Date.parse(s.ends_at) - Date.parse(s.started_at)) / 60_000);
 
 /**
  * Secret scenario content (persona, facts, rubric) via the service role.
