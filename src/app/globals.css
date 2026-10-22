@@ -96,6 +96,14 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+
+  .stage-enter {
+    clip-path: none !important;
+    animation: none !important;
+  }
+  .spotlight {
+    animation: none !important;
+  }
 }
 
 /* Stage (ruang wawancara), design-system §4 "masuk panggung" + spotlight. */
