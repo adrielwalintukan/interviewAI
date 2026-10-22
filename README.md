@@ -60,14 +60,44 @@ npm run eval
 ## Setup Supabase (sekali)
 
 1. Jalankan file di `supabase/migrations/` **berurutan** di SQL Editor Supabase. Tunggu job CI `Database pgTAP & RLS Tests` hijau dulu. Migrasi `20261026000000_retention_job.sql` mengaktifkan extension `pg_cron` dan menjadwalkan job retensi bulanan `monthly-retention`. Cek di **Integrations → Cron** atau lewat `select * from cron.job;`.
-2. **Authentication → Sign In / Providers → Email**: matikan **Confirm email** (keputusan M1). Email bawaan Supabase hanya terkirim ke anggota tim project.
-3. **Authentication → URL Configuration**: isi Site URL (mis. `http://localhost:3000` / domain Vercel) dan Redirect URL `…/auth/callback`.
-4. **Admin pertama**: daftar lewat `/daftar`, lalu jalankan di SQL Editor (ganti emailnya):
+2. **Email (#18).** Email bawaan Supabase hanya terkirim ke anggota tim project, jadi pakai SMTP sendiri (Gmail):
+   - Akun Google pengirim: aktifkan verifikasi 2 langkah, lalu buat **App Password** (Akun Google → Keamanan → Sandi aplikasi). Batas Gmail sekitar 500 email/hari.
+   - **Authentication → Emails → SMTP Settings**: aktifkan custom SMTP. Host `smtp.gmail.com`, port `465`, username = alamat Gmail, password = App Password, sender email = alamat Gmail yang sama, sender name `Interview AI`.
+   - **Authentication → Emails → Templates → Confirm signup**: subjek `Konfirmasi akun Interview AI`, isi:
+
+     ```html
+     <h2>Konfirmasi email Anda</h2>
+     <p>Klik tautan berikut untuk mengaktifkan akun Interview AI Anda.</p>
+     <p><a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}">Konfirmasi email</a></p>
+     <p>Abaikan email ini bila Anda tidak merasa mendaftar.</p>
+     ```
+
+     Tautan memakai `{{ .RedirectTo }}` (bukan `{{ .ConfirmationURL }}`) agar diproses `auth/callback` dan bisa dibuka di perangkat lain. Template lain tidak dipakai aplikasi.
+   - **Authentication → Sign In / Providers → Email**: nyalakan **Confirm email**.
+3. **Authentication → URL Configuration**: Site URL = URL production. Redirect URLs: `http://localhost:3000/**`, `https://<url-production>/**`, dan `https://<url-staging>/**` (lihat Deploy).
+4. **Google OAuth (#18).**
+   - Google Cloud Console → **APIs & Services → OAuth consent screen**: tipe External, isi nama aplikasi dan email, scope bawaan saja (email, profile, openid). Ubah status ke **In production**; selama masih *Testing*, hanya akun test user yang bisa masuk.
+   - **Credentials → Create credentials → OAuth client ID**, tipe *Web application*. Authorized redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback`.
+   - Supabase **Authentication → Sign In / Providers → Google**: aktifkan, isi Client ID dan Client Secret.
+   - Set `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED=true` di Vercel (dan `.env.local` bila ingin menguji lokal).
+5. **Admin pertama**: daftar lewat `/daftar`, lalu jalankan di SQL Editor (ganti emailnya):
 
 ```sql
 update public.profiles set role = 'admin', status = 'active'
 where id = (select id from auth.users where email = 'email-anda@contoh.com');
 ```
+
+## Deploy (Vercel)
+
+Staging dan production memakai satu project Supabase (`docs/engineering-standard.md §6`).
+
+1. Vercel → **Add New → Project** → import repo ini (framework Next.js terdeteksi otomatis).
+2. **Settings → Environment Variables**: isi semua variabel di tabel bawah untuk **Production** dan **Preview**. Variabel tanpa awalan `NEXT_PUBLIC_` hanya dibaca server. `LIVE_MAX_CONCURRENT` opsional (bawaan 5).
+3. **Settings → Git**: Production Branch = `main`. Setiap push ke `development` membuat deploy preview dengan URL cabang tetap `https://<project>-git-development-<akun>.vercel.app`; URL ini yang dipakai sebagai **staging**.
+4. **Settings → Functions → Function Region**: pilih region yang sama atau terdekat dengan region project Supabase (Supabase → Project Settings → General).
+5. Daftarkan URL production dan staging di Supabase Redirect URLs (Setup Supabase langkah 3).
+
+**Rotasi key** (bila ada indikasi bocor, `docs/security-privacy.md`): buat key baru di penyedianya (Supabase, Google AI Studio, 9router, Google Cloud), ganti nilainya di Vercel untuk Production dan Preview, redeploy, lalu cabut key lama.
 
 ## Environment variables
 
@@ -86,6 +116,7 @@ Hanya nama variabel. Nilainya disimpan di `.env.local`, yang **tidak pernah** di
 | `LIVE_MODEL` | server | Model Gemini Live (native audio) |
 | `TTS_MODEL` | server | Model Gemini TTS untuk suara karakter di mode hemat (nama suara sama dengan Live) |
 | `GEMINI_FALLBACK_MODEL` | server | Model teks Gemini yang dipakai bila 9router gagal |
+| `LIVE_MAX_CONCURRENT` | server | Opsional. Batas sesi Live bersamaan sebelum sesi baru masuk mode hemat (bawaan 5) |
 | `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED` | client | `true` untuk menampilkan tombol login Google (setelah OAuth Client diisi di Supabase) |
 
 ## Keterlacakan keputusan

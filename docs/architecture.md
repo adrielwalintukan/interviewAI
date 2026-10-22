@@ -55,7 +55,7 @@ src/
       skenario/             editor (Pengajar)
       admin/
     sesi/[id]/              ruang wawancara (layout "panggung")
-    auth/callback/          OAuth callback (Route Handler)
+    auth/callback/          Callback OAuth Google + link konfirmasi email (Route Handler)
     keluar/                 sign-out (Route Handler)
   features/
     interview/              server actions sesi (actions.ts, voice.ts), voice controller, transcript
@@ -228,6 +228,9 @@ Nilai terbaik per tugas tidak disimpan sebagai kolom. Nilai ini dihitung lewat v
   - `pending` (pengajar baru) hanya bisa melihat dashboard menunggu.
   - `disabled` diblokir dua lapis: `profiles.status` + `ban_duration` di Supabase Auth. Sesi lama dibersihkan lewat `/keluar`.
   - `must_change_password` memaksa ke `/ganti-password`.
+- **Konfirmasi email (#18):** aktif di hosted, dikirim lewat SMTP sendiri. `signUp` mengirim `emailRedirectTo` = `<origin>/auth/callback`, dan template email menautkan `{{ .RedirectTo }}?token_hash={{ .TokenHash }}`. Callback memanggil `verifyOtp` (bukan PKCE), sehingga link bisa dibuka di perangkat lain dan staging kembali ke staging. Link yang gagal → `/masuk?error=konfirmasi`. Login dengan email yang belum dikonfirmasi diberi pesan khusus; Supabase hanya melaporkannya setelah password cocok, jadi tidak membuka keberadaan akun.
+- **Daftar dengan Google sebagai Pengajar (#18, workflow §1):** peran dipilih di `/daftar` sebelum tombol Google. Sign-up OAuth tidak membawa metadata peran, jadi trigger membuat pelajar; callback dengan `peran=pengajar` lalu memanggil RPC `request_teacher_role()`. RPC hanya mengubah akun yang benar-benar baru (profil ≤ 10 menit, pelajar aktif, bukan akun massal, belum punya kelas atau sesi) menjadi pengajar `pending`, dan mengembalikan `true` bila akun kini di sisi pengajar (baru diubah, atau sudah pengajar/admin). Bila hasilnya `false` (pelajar lama) atau RPC gagal, callback mengeluarkan sesi lalu mengarahkan ke `/masuk?error=peran-ditolak` / `peran-gagal`, sehingga pilihan Pengajar tidak pernah diam-diam berakhir sebagai pelajar.
+- **Base URL link Supabase:** header `Origin` dari Server Action. Next.js membatalkan action yang `Origin`-nya tidak sama dengan host, dan Supabase hanya mengikuti redirect di daftar izin. Permintaan tanpa `Origin` ditolak (tidak ada link relatif).
 - **Kode kelas:** 6 karakter dari 31 huruf/angka tanpa `I O 0 1`. Gabung lewat RPC `join_class()`, yang mengembalikan `null` sama persis untuk kode salah maupun kelas yang diarsipkan.
 
 ## 7. RLS (ringkas)
@@ -249,7 +252,7 @@ Data yang perlu fakta (persona prompt, grader) dibaca oleh server dengan service
 
 ## 8. Server Actions & Route Handlers
 
-Mutasi memakai **Server Actions** (tidak ada folder `app/api`). Setiap action memanggil `requireUser` → cek kepemilikan → validasi Zod → aksi/RPC. Route Handler hanya untuk `auth/callback` (OAuth) dan `keluar` (sign-out).
+Mutasi memakai **Server Actions** (tidak ada folder `app/api`). Setiap action memanggil `requireUser` → cek kepemilikan → validasi Zod → aksi/RPC. Route Handler hanya untuk `auth/callback` (OAuth Google dan link konfirmasi email) dan `keluar` (sign-out).
 
 | Action | File | Fungsi | Auth |
 |---|---|---|---|

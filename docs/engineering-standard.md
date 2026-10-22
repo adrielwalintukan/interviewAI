@@ -104,8 +104,9 @@ gitGraph
   - Build.
   - E2E Playwright, khusus PR ke `main`.
 - **Deploy:**
-  - `development` → environment staging (Vercel preview + Supabase project dev).
+  - `development` → environment staging (Vercel preview, URL cabang `development`).
   - `main` → production.
+  - Staging dan production memakai **satu project Supabase** yang sama (keputusan pemilik repo, 2026-10-22, #18: tidak perlu membuat dan merawat project kedua di free tier). Konsekuensinya: data yang dibuat di staging ikut ada di production, sehingga uji di staging memakai akun dan data sintetis lalu dibersihkan, dan migrasi berlaku untuk keduanya sekaligus.
 - **Keputusan besar** yang sulit dibalik dicatat sebagai ADR di [decisions/](decisions/).
 
 ## 7. Performa
