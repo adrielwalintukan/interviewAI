@@ -33,10 +33,15 @@ export async function loadOwnActiveSession(sessionId: string, userId: string) {
   const scenario = await loadScenarioContent(session.scenario_version_id);
   if (!scenario) return null;
   // Library practice and teacher previews have no assignment: always "normal" (issue #49).
-  // The persona states the real limit instead of whatever the scenario text says.
-  const minutes = Math.round((Date.parse(session.ends_at) - Date.parse(session.started_at)) / 60_000);
-  return { supabase, session, minutes, clientLevel: session.assignment?.client_level ?? ("normal" as ClientLevel), ...scenario };
+  return { supabase, session, minutes: sessionMinutes(session), clientLevel: session.assignment?.client_level ?? ("normal" as ClientLevel), ...scenario };
 }
+
+/**
+ * Total session length for the persona prompt, which replaces whatever the scenario text says. Not the time left:
+ * Live locks the prompt into the token at the start (ADR-002), so it could never be kept current.
+ */
+export const sessionMinutes = (s: Pick<SessionRow, "started_at" | "ends_at">) =>
+  Math.round((Date.parse(s.ends_at) - Date.parse(s.started_at)) / 60_000);
 
 /**
  * Secret scenario content (persona, facts, rubric) via the service role.

@@ -29,7 +29,8 @@ describe("buildPersonaPrompt", () => {
   });
 
   it("states the real session length, whatever the scenario text says", () => {
-    expect(prompt).toContain("Wawancara ini dibatasi 5 menit. Jangan menyebut lama waktu yang lain.");
+    expect(prompt).toContain("Durasi total wawancara ini 5 menit. Jangan menyebut lama waktu yang lain.");
+    expect(prompt).toContain("Sisa waktu terlihat di layar pewawancara; jangan menebaknya.");
   });
 
   it("opens with a short greeting in the character's own words, the opening line only as a mood", () => {
