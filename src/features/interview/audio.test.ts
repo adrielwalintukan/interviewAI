@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { startMic } from "./audio";
+import { analyserCentroid, startMic } from "./audio";
 
 class FakeWorkletNode {
   static last: FakeWorkletNode;
@@ -34,5 +34,21 @@ describe("startMic", () => {
     expect(track.enabled).toBe(false);
     expect(onChunk).toHaveBeenCalledWith(chunk);
     expect(mic.level()).toBe(0);
+  });
+});
+
+describe("analyserCentroid", () => {
+  // 256 bins over 0..12 kHz (24 kHz playback): 46.875 Hz per bin.
+  const analyserWith = (db: (bin: number) => number) =>
+    ({ getFloatFrequencyData: (out: Float32Array) => out.forEach((_, i) => (out[i] = db(i))) }) as unknown as AnalyserNode;
+
+  it("lands on a single loud bin and ignores energy above 4 kHz", () => {
+    const at1kHz = Math.round(1000 / 46.875);
+    const c = analyserWith((i) => (i === at1kHz || i === 200 ? 0 : -Infinity));
+    expect(analyserCentroid(c, new Float32Array(256), 24000)).toBeCloseTo(at1kHz * 46.875);
+  });
+
+  it("is 0 for silence", () => {
+    expect(analyserCentroid(analyserWith(() => -Infinity), new Float32Array(256), 24000)).toBe(0);
   });
 });

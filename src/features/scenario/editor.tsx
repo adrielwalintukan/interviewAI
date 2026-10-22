@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ComponentProps, type ReactNode } from "react";
 import { buttonClass } from "@/components/ui/button-class";
 import { Notice } from "@/components/ui/form";
+import { Avatar } from "@/features/avatar/avatar";
 import { generateDraft, publishScenario, saveDraft, setScenarioPublic } from "./actions";
 import { CharacterPortrait } from "./character-portrait";
 import { FACT_CATEGORIES, LANGUAGES, LEVELS, publishProblems, renumberFacts, type ScenarioDraft } from "./schema";
@@ -15,6 +16,7 @@ export type EditorCharacter = {
   gender: string;
   live_voice: string;
   portrait_hue: number;
+  vrm_url: string | null;
 };
 
 type Fact = NonNullable<ScenarioDraft["facts"]>[number];
@@ -130,6 +132,8 @@ export function ScenarioEditor({
   const [factCount, setFactCount] = useState(10);
   const [aiError, setAiError] = useState<string>();
   const [publishMsg, setPublishMsg] = useState<{ ok: boolean; text: string; problems?: string[] }>();
+  const [previewing, setPreviewing] = useState<string>();
+  const chosen = characters.find((c) => c.id === draft.characterId);
   const [generating, startGenerate] = useTransition();
   const [publishing, startPublish] = useTransition();
 
@@ -381,6 +385,33 @@ export function ScenarioEditor({
               ))}
             </div>
           </fieldset>
+          {chosen?.vrm_url && (
+            <div className="mt-6">
+              {/* US-G-05: three.js loads only after this click, so the editor's own bundle stays small. */}
+              {/* One toggle button for open and close, so keyboard focus never jumps. */}
+              <button
+                type="button"
+                aria-expanded={previewing === chosen.id}
+                onClick={() => setPreviewing(previewing === chosen.id ? undefined : chosen.id)}
+                className={buttonClass("ghost")}
+              >
+                {previewing === chosen.id ? "Tutup pratinjau" : `Lihat animasi ${chosen.name}`}
+              </button>
+              {previewing === chosen.id && (
+                <div className="mt-3 h-80 w-full max-w-sm overflow-hidden rounded-md border border-rule bg-paper-2">
+                  <Avatar
+                    url={chosen.vrm_url}
+                    pose="idle"
+                    portrait={
+                      <div className="grid size-full place-items-center">
+                        <CharacterPortrait name={chosen.name} hue={chosen.portrait_hue} size="lg" />
+                      </div>
+                    }
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </Section>
 
         <Section id="terbit" n={6} title="Terbitkan" intro="Setiap terbit membuat versi baru. Tugas yang sudah diberikan tetap memakai versi saat tugas dibuat.">

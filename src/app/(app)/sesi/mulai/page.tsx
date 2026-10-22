@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { preload } from "react-dom";
 import { requireUser } from "@/features/auth/dal";
 import { DueLabel } from "@/features/classroom/assignments";
 import { LobbyStart } from "@/features/interview/lobby-start";
@@ -19,9 +20,9 @@ type Brief = {
   client_name: string;
   client_occupation: string;
   language: "id" | "en";
-  characters: { portrait_hue: number } | null;
+  characters: { portrait_hue: number; vrm_path: string | null } | null;
 };
-const BRIEF = "id, title, learner_role, objective, client_name, client_occupation, language, characters(portrait_hue)";
+const BRIEF = "id, title, learner_role, objective, client_name, client_occupation, language, characters(portrait_hue, vrm_path)";
 const isUuid = (v: unknown): v is string => typeof v === "string" && /^[0-9a-f-]{36}$/i.test(v);
 
 async function Lobby({ searchParams }: { searchParams: PageProps<"/sesi/mulai">["searchParams"] }) {
@@ -69,6 +70,10 @@ async function Lobby({ searchParams }: { searchParams: PageProps<"/sesi/mulai">[
     meta = { minutes: kind === "library" ? 15 : 10 };
     if (kind === "preview" && user.role !== "pengajar") notFound();
   } else notFound();
+
+  // architecture §5: fetch the avatar while the learner reads the brief, so the stage opens with it.
+  const vrmPath = brief?.characters?.vrm_path;
+  if (vrmPath) preload(supabase.storage.from("characters").getPublicUrl(vrmPath).data.publicUrl, { as: "fetch", crossOrigin: "anonymous" });
 
   const { data: active } = await supabase
     .from("sessions")
