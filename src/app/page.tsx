@@ -8,7 +8,7 @@ export default function Home() {
       <header className="flex items-baseline justify-between border-b border-rule pb-4">
         <span className="font-display text-xl font-semibold tracking-tight">Interview AI</span>
         <nav className="flex items-center gap-2">
-          <Link href="/masuk" className="min-h-11 px-3 py-2.5 text-sm text-ink-2 hover:text-ink">
+          <Link href="/masuk" className="inline-flex min-h-11 items-center px-3 text-sm text-ink-2 hover:text-ink">
             Masuk
           </Link>
           <Link href="/daftar" className={buttonClass("primary", "text-sm")}>
@@ -43,7 +43,7 @@ export default function Home() {
       </section>
 
       <footer className="flex items-center justify-end border-t border-rule pt-4 font-mono text-label uppercase text-ink-2">
-        <Link href="/privasi" className="underline-offset-4 hover:text-ink hover:underline">
+        <Link href="/privasi" className="inline-flex min-h-11 items-center px-2 underline-offset-4 hover:text-ink hover:underline">
           Kebijakan Privasi
         </Link>
       </footer>

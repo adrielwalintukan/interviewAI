@@ -236,7 +236,7 @@ export function ScenarioEditor({
           <ol className="flex flex-col gap-1 text-sm">
             {SECTIONS.map(([sid, label], i) => (
               <li key={sid}>
-                <a href={`#${sid}`} className="flex min-h-9 items-center gap-3 text-ink-2 hover:text-ink">
+                <a href={`#${sid}`} className="flex min-h-11 items-center gap-3 text-ink-2 hover:text-ink">
                   <span className="font-mono text-label">{String(i + 1).padStart(2, "0")}</span>
                   {label}
                 </a>
