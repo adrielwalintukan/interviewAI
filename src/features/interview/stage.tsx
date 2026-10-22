@@ -365,7 +365,8 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_26rem] lg:grid-rows-1">
+      {/* minmax(0,1fr) on mobile too: an implicit auto column grows to the text input's intrinsic width (~200px) and clips the stage at 360px. */}
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_26rem] lg:grid-rows-1">
         <section aria-label={`Karakter ${first}`} className="relative flex min-h-[36dvh] flex-col items-center justify-center overflow-hidden px-4 py-8 lg:min-h-0">
           <div aria-hidden className="spotlight pointer-events-none absolute inset-0" />
           <div className="relative grid h-[30dvh] w-full max-w-md place-items-center sm:h-[42dvh] lg:h-[64dvh] lg:max-w-xl">
