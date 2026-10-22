@@ -1,0 +1,23 @@
+# Local Supabase (CLI) config, used by `supabase start` / `supabase test db` in CI.
+# Unlisted settings use CLI defaults. The hosted project is configured in the dashboard.
+project_id = "interview-ai"
+
+[api]
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.seed]
+enabled = false
+
+[studio]
+port = 54323
+
+[auth]
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000"]

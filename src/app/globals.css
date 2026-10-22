@@ -1,0 +1,135 @@
+@import "tailwindcss";
+
+/* Tokens: docs/design-system.md §3. Editorial (light) is default; .stage switches a subtree to the dark "panggung". */
+@theme {
+  --color-paper: #f4efe6;
+  --color-paper-2: #eae3d6;
+  --color-ink: #1b1a17;
+  --color-ink-2: #5b574f;
+  --color-rule: #d3caba;
+  --color-accent: #d9432b;
+  --color-accent-ink: #fff8f0;
+  --color-moss: #2f5d50;
+  --color-ochre: #c8902e;
+  --color-highlight: #f6d365;
+
+  --color-stage: #0e0d0b;
+  --color-stage-2: #1a1814;
+  --color-spot: #ffd9a8;
+  --color-stage-ink: #ede6da;
+  --color-stage-ink-2: #9a9285;
+  --color-live: #e5574a;
+
+  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  --text-display-xl: clamp(2.75rem, 1.5rem + 6vw, 6rem);
+  --text-display-xl--line-height: 0.95;
+  --text-display: clamp(2.5rem, 1.6rem + 3.6vw, 4rem);
+  --text-display--line-height: 1;
+  --text-label: 0.75rem;
+  --text-label--letter-spacing: 0.08em;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+
+  --shadow-float: 0 1px 0 var(--color-rule), 0 12px 24px -16px rgb(27 26 23 / 0.25);
+
+  --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-scene: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+  body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--color-highlight);
+    color: var(--color-ink);
+  }
+}
+
+@utility stage {
+  color-scheme: dark;
+  background: var(--color-stage);
+  color: var(--color-stage-ink);
+}
+
+/* Paper grain (design-system §2): SVG noise at ~4% so surfaces don't look flat/digital. */
+@utility grain {
+  position: relative;
+  isolation: isolate;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.045;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+}
+
+/* Highlighter stroke used for "fakta ditemukan" and emphasis. */
+@utility stabilo {
+  background-image: linear-gradient(transparent 55%, var(--color-highlight) 55%, var(--color-highlight) 90%, transparent 90%);
+  mix-blend-mode: multiply;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Stage (ruang wawancara), design-system §4 "masuk panggung" + spotlight. */
+@keyframes stage-enter {
+  from {
+    clip-path: circle(0% at 50% 60%);
+  }
+  to {
+    clip-path: circle(150% at 50% 60%);
+  }
+}
+@keyframes spot-flicker {
+  0%, 12% { opacity: 0; }
+  14% { opacity: 0.55; }
+  16% { opacity: 0.2; }
+  22%, 100% { opacity: 1; }
+}
+@utility stage-enter {
+  animation: stage-enter 900ms var(--ease-scene) both;
+}
+@utility spotlight {
+  background: radial-gradient(ellipse 55% 60% at 50% 42%, color-mix(in oklab, var(--color-spot) 16%, transparent), transparent 70%);
+  animation: spot-flicker 1400ms linear both;
+}
+/* Ring scales with --level (0..1) set per animation frame from the audio analyser. */
+@utility speaking-ring {
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -2.5rem;
+    border-radius: 9999px;
+    border: 1px solid color-mix(in oklab, var(--color-spot) 45%, transparent);
+    transform: scale(calc(1 + var(--level, 0) * 0.18));
+    opacity: calc(0.15 + var(--level, 0) * 0.85);
+    transition: transform 60ms linear, opacity 60ms linear;
+  }
+}
