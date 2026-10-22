@@ -114,8 +114,8 @@ gitGraph
 |---|---|
 | LCP halaman editorial (profil mobile Lighthouse, lihat Pengukuran) | < 3.0 dtk (sementara, ditinjau setelah pilot) |
 | JS awal halaman editorial | < 180 KB gzip |
-| Bundle panggung (three + vrm) | Dimuat terpisah lewat `next/dynamic`, hanya di `/sesi` |
-| Ukuran per VRM | ≤ 8 MB, tekstur ≤ 1024² |
+| Bundle panggung (three + vrm) | Dimuat terpisah lewat `next/dynamic`: di `/sesi`, dan di editor skenario hanya setelah "Lihat animasi" diklik (US-G-05) |
+| Ukuran per VRM | ≤ 8 MB, tekstur ≤ 1024² (setelah `npm run vrm:optimize`, vrm-spec §6) |
 | FPS avatar | ≥ 50 desktop, ≥ 30 mobile menengah |
 
 **Pengukuran.** `npm run build` + `npm start`, lalu Lighthouse mode mobile dengan profil bawaan (1,6 Mbps, RTT 150 ms, CPU 4×, setara "Slow 4G") dan **throttling diterapkan sungguhan** (`--throttling-method=devtools`), cache dingin, median 3 run. Simulasi bawaan Lighthouse (`simulate`) lebih pesimis karena menghitung semua byte yang diminta sebelum LCP, termasuk JS async. Halaman yang butuh login diukur di Chrome yang sudah login (`--port`, `--disable-storage-reset`, cache dikosongkan sebelum tiap run). Target awal < 2.5 dtk tidak tercapai tanpa perubahan besar (#45); target sementara < 3.0 dtk diputuskan pemilik repo (2026-10-21).

@@ -22,7 +22,21 @@ export function analyserLevel(analyser: AnalyserNode, scratch: Float32Array<Arra
   return Math.min(1, Math.sqrt(sum / scratch.length) * 4);
 }
 
-export type Mic = { stop: () => void; setMuted: (m: boolean) => void; level: () => number };
+/** Spectral centroid (Hz) of the analyser below 4 kHz, 0 when silent — the avatar's vowel cue. */
+export function analyserCentroid(analyser: AnalyserNode, bins: Float32Array<ArrayBuffer>, sampleRate: number): number {
+  analyser.getFloatFrequencyData(bins); // dB per bin
+  const hzPerBin = sampleRate / 2 / bins.length;
+  let weighted = 0;
+  let total = 0;
+  for (let i = 1; i < bins.length && i * hzPerBin < 4000; i++) {
+    const m = 10 ** ((bins[i] ?? -Infinity) / 20);
+    weighted += m * i * hzPerBin;
+    total += m;
+  }
+  return total > 0 ? weighted / total : 0;
+}
+
+export type Mic ={ stop: () => void; setMuted: (m: boolean) => void; level: () => number };
 
 /** 16 kHz mono PCM chunks (~100 ms) via AudioWorklet. Throws if permission is denied. */
 export async function startMic(onChunk: (pcm: ArrayBuffer) => void): Promise<Mic> {
@@ -60,6 +74,7 @@ export class PcmPlayer {
   private ctx = new AudioContext({ sampleRate: 24000 });
   private analyser = this.ctx.createAnalyser();
   private scratch = new Float32Array(512);
+  private bins = new Float32Array(256);
   private nextAt = 0;
   private sources = new Set<AudioBufferSourceNode>();
 
@@ -106,6 +121,10 @@ export class PcmPlayer {
 
   level() {
     return this.playing ? analyserLevel(this.analyser, this.scratch) : 0;
+  }
+
+  centroid() {
+    return this.playing ? analyserCentroid(this.analyser, this.bins, this.ctx.sampleRate) : 0;
   }
 
   close() {

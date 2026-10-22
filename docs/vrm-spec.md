@@ -35,7 +35,7 @@ ID harus sama persis dengan tabel `characters`, karena nama file = ID.
 | Ekspresi | Preset VRM 1.0 lengkap: `aa`, `ih`, `ou`, `ee`, `oh` (lip-sync), `blink`, `blinkLeft`, `blinkRight`, `happy`, `angry`, `sad`, `relaxed`, `surprised`, `neutral`. VRoid membuatnya otomatis; **jangan dihapus**. Cek di tab Ekspresi bahwa `aa/ih/ou/ee/oh` menggerakkan mulut dengan jelas |
 | Look-at | Biarkan default (bone/eye look-at aktif) |
 | Ukuran file | **≤ 8 MB** per file |
-| Tekstur | Atlas **≤ 1024×1024** (Export → atur resolusi tekstur), material digabung |
+| Tekstur | Atlas **≤ 1024×1024**. VRoid 2.14 hanya menawarkan 2048/4096: export 2048, lalu `npm run vrm:optimize` (§6) mengecilkannya. Materials 8 |
 | Poligon | Gunakan opsi "Reduce polygons" dan "Delete transparent meshes" saat export. Target < 40k segitiga |
 | Spring bone | Hanya rambut dan ujung pakaian. Jumlah kecil, agar ringan di HP |
 | Pose | Pose default (T/A-pose); animasi idle dibuat di aplikasi |
@@ -58,9 +58,8 @@ ID harus sama persis dengan tabel `characters`, karena nama file = ID.
 
 ## 6. Cara menyerahkan
 
-Kirim file `.vrm` (mis. lewat Google Drive), atau letakkan di folder lokal lalu kabari agent. Agent akan:
-1. memvalidasi ekspresi, ukuran, dan versi;
-2. mengunggahnya ke Supabase Storage bucket `characters/` dan mengisi `characters.vrm_path`;
-3. mengganti potret CSS sementara dengan render 3D.
+Letakkan file `.vrm` di satu folder lokal (di luar repo), lalu:
 
-Sambil menunggu, M3 tetap bisa dikerjakan: ruang wawancara memakai potret sementara, lalu langsung beralih ke 3D begitu file tersedia. Mulai dari **2 karakter dulu** (Ratna dan Hendra) untuk menguji lip-sync, baru sisanya.
+1. **Rapikan:** `npm run vrm:optimize -- "<folder>"`. VRoid Studio 2.x hanya menawarkan atlas 2048/4096 dan menyimpan setiap ekspresi wajah secara penuh, sehingga hasil export biasanya 9–12 MB. Skrip `scripts/optimize-vrm.mjs` mengecilkan tekstur > 1024 menjadi 1024 dan menyimpan data ekspresi sebagai *sparse accessor* glTF (hanya titik yang bergerak; nilainya diperiksa ulang dan identik). Hasilnya di `<folder>/optimized/`, dan skrip gagal bila ada syarat §3 yang tidak terpenuhi. Hasil 2026-10-22: 2,7–4,2 MB per karakter.
+2. **Unggah** keenam file dari `optimized/` ke Supabase Storage bucket `characters` (Dashboard → Storage), dengan nama file = id. Bucket dan `characters.vrm_path` dibuat oleh migrasi `20261028000000_character_storage.sql`; hanya service role/Dashboard yang bisa menulis.
+3. Ruang wawancara dan pratinjau editor otomatis memakai 3D. Karakter tanpa file, atau file yang gagal dimuat, tetap tampil sebagai potret CSS.
