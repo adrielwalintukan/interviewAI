@@ -48,6 +48,12 @@ async function UserMenu() {
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="grain min-h-dvh">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-sm focus:bg-ink focus:px-4 focus:py-2 focus:text-paper focus:outline-2 focus:outline-accent"
+      >
+        Lewati ke konten utama
+      </a>
       <header className="mx-auto flex print:hidden max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-rule px-4 py-2 sm:px-8">
         <Link href="/dashboard" className="inline-flex min-h-11 items-center font-display text-xl font-semibold tracking-tight">
           Interview AI
@@ -56,7 +62,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <UserMenu />
         </Suspense>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-8 sm:py-12">{children}</main>
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-4 py-8 sm:px-8 sm:py-12">{children}</main>
       <footer className="mx-auto flex print:hidden max-w-6xl items-center justify-between border-t border-rule px-4 py-4 text-xs text-ink-2 sm:px-8">
         <span>Interview AI</span>
         <Link href="/privasi" className="inline-flex min-h-11 items-center px-2 underline-offset-4 hover:text-ink hover:underline">

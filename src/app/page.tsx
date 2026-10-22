@@ -5,6 +5,12 @@ import { buttonClass } from "@/components/ui/button-class";
 export default function Home() {
   return (
     <main className="grain mx-auto flex min-h-dvh max-w-6xl flex-col px-4 py-6 sm:px-8 sm:py-10">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-sm focus:bg-ink focus:px-4 focus:py-2 focus:text-paper focus:outline-2 focus:outline-accent"
+      >
+        Lewati ke konten utama
+      </a>
       <header className="flex items-baseline justify-between border-b border-rule pb-4">
         <span className="font-display text-xl font-semibold tracking-tight">Interview AI</span>
         <nav className="flex items-center gap-2">
@@ -17,7 +23,7 @@ export default function Home() {
         </nav>
       </header>
 
-      <section className="grid flex-1 content-center gap-10 py-12 md:grid-cols-12 md:py-6">
+      <section id="main-content" tabIndex={-1} className="grid flex-1 content-center gap-10 py-12 md:grid-cols-12 md:py-6">
         <div className="md:col-span-8">
           <p className="mb-6 font-mono text-label uppercase text-accent">Latihan wawancara kebutuhan</p>
           {/* display-xl, also capped by viewport height so the landing fits one screen without scrolling */}
