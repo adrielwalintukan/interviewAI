@@ -30,6 +30,7 @@ function AccessButton({ user, role, status, label }: { user: ProfileRow; role: P
       <input type="hidden" name="status" value={status} />
       <button type="submit" className="min-h-11 rounded-sm border border-rule px-3 text-sm hover:border-ink">
         {label}
+        <span className="sr-only"> untuk {user.display_name}</span>
       </button>
     </form>
   );

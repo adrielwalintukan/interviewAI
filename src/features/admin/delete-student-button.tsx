@@ -54,7 +54,7 @@ export function DeleteStudentButton({ userId, name }: { userId: string; name: st
               onChange={(e) => setTyped(e.target.value)}
               aria-invalid={state?.error ? true : undefined}
               aria-describedby={state?.error ? `${id}-err` : undefined}
-              className="min-h-11 rounded-sm border border-rule bg-paper px-3 text-base text-ink outline-none focus:border-ink aria-invalid:border-accent"
+              className="min-h-11 rounded-sm border border-rule bg-paper px-3 text-base text-ink transition-colors focus:border-ink focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 aria-invalid:border-accent"
             />
             {state?.error && (
               <p id={`${id}-err`} role="alert" className="text-sm text-accent">
