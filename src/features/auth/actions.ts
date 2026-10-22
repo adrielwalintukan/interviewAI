@@ -34,7 +34,9 @@ export async function signIn(_: FormState, form: FormData): Promise<FormState> {
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
-  // One message for every failure so the form can't be used to discover which accounts exist.
+  // Supabase reports an unconfirmed email only after the password matched, so this reveals nothing new.
+  if (error?.code === "email_not_confirmed") return { error: "Email belum dikonfirmasi. Buka link di email pendaftaran Anda.", values };
+  // One message for every other failure so the form can't be used to discover which accounts exist.
   if (error) return { error: "Email/username atau password salah.", values };
 
   redirect(safeNextPath(form.get("next")));
@@ -56,12 +58,14 @@ export async function signUp(_: FormState, form: FormData): Promise<FormState> {
   if (!parsed.success) return { fieldErrors: fieldErrors(parsed.error), values };
   const { displayName, email, password: pass, role } = parsed.data;
 
+  const origin = (await headers()).get("origin") ?? "";
   const supabase = await createClient();
   // role is only a request: the DB trigger makes "pengajar" pending and never grants admin.
+  // emailRedirectTo is {{ .RedirectTo }} in the confirmation email, so staging links come back to staging.
   const { data, error } = await supabase.auth.signUp({
     email,
     password: pass,
-    options: { data: { display_name: displayName, role } },
+    options: { data: { display_name: displayName, role }, emailRedirectTo: `${origin}/auth/callback` },
   });
   if (error) {
     return {
@@ -77,10 +81,11 @@ export async function signInWithGoogle(form: FormData): Promise<void> {
   if (process.env.NEXT_PUBLIC_AUTH_GOOGLE_ENABLED !== "true") redirect("/masuk");
   const origin = (await headers()).get("origin") ?? "";
   const next = safeNextPath(form.get("next"));
+  const role = form.get("role") === "pengajar" ? "&peran=pengajar" : "";
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}` },
+    options: { redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}${role}` },
   });
   if (error || !data.url) redirect("/masuk?error=google");
   redirect(data.url);

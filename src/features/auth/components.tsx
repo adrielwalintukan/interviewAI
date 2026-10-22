@@ -8,11 +8,14 @@ import { changePassword, signIn, signInWithGoogle, signUp } from "./actions";
 
 const googleEnabled = process.env.NEXT_PUBLIC_AUTH_GOOGLE_ENABLED === "true";
 
-function GoogleButton({ next }: { next?: string }) {
+type Role = "pelajar" | "pengajar";
+
+function GoogleButton({ next, role }: { next?: string; role?: Role }) {
   if (!googleEnabled) return null;
   return (
     <form action={signInWithGoogle} className="mt-6">
       <input type="hidden" name="next" value={next ?? ""} />
+      {role && <input type="hidden" name="role" value={role} />}
       <button type="submit" className={buttonClass("ghost", "w-full")}>
         Lanjut dengan Google
       </button>
@@ -33,6 +36,9 @@ export function SignInForm({ next, error }: { next?: string; error?: string }) {
         <Field label="Email atau username" name="identifier" autoComplete="username" required autoFocus defaultValue={state?.values?.identifier} />
         <Field label="Password" name="password" type="password" autoComplete="current-password" required />
         {error === "google" && <Notice>Masuk dengan Google gagal. Coba lagi.</Notice>}
+        {error === "konfirmasi" && (
+          <Notice>Link konfirmasi tidak berlaku lagi. Coba masuk; bila belum bisa, daftar ulang dengan email yang sama untuk mendapat link baru.</Notice>
+        )}
         {state?.error && <Notice>{state.error}</Notice>}
         <SubmitButton pending="Masuk…">Masuk</SubmitButton>
       </form>
@@ -56,29 +62,31 @@ export function SignInForm({ next, error }: { next?: string; error?: string }) {
 
 export function SignUpForm() {
   const [state, action] = useActionState(signUp, undefined);
-  const [role, setRole] = useState<"pelajar" | "pengajar">("pelajar");
+  const [role, setRole] = useState<Role>("pelajar");
   const fe = state?.fieldErrors;
   return (
     <>
-      <GoogleButton />
+      {/* The role comes first: it applies to Google and to the email form (workflow §1). */}
+      <fieldset className="mt-6 flex flex-col gap-2">
+        <legend className="mb-1.5 font-mono text-label uppercase text-ink-2">Saya seorang</legend>
+        <div className="grid grid-cols-2 gap-2">
+          {(["pelajar", "pengajar"] as const).map((r) => (
+            <label
+              key={r}
+              className="flex min-h-11 cursor-pointer items-center justify-center rounded-sm border border-rule px-3 text-sm capitalize transition-colors has-checked:border-ink has-checked:bg-ink has-checked:text-paper has-focus-visible:outline-2 has-focus-visible:outline-accent"
+            >
+              <input type="radio" name="role" value={r} checked={role === r} onChange={() => setRole(r)} className="sr-only" />
+              {r}
+            </label>
+          ))}
+        </div>
+        {role === "pengajar" && (
+          <p className="text-sm text-ink-2">Akun pengajar aktif setelah disetujui Admin institusi.</p>
+        )}
+      </fieldset>
+      <GoogleButton role={role} />
       <form action={action} className="mt-6 flex flex-col gap-5">
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1.5 font-mono text-label uppercase text-ink-2">Saya seorang</legend>
-          <div className="grid grid-cols-2 gap-2">
-            {(["pelajar", "pengajar"] as const).map((r) => (
-              <label
-                key={r}
-                className="flex min-h-11 cursor-pointer items-center justify-center rounded-sm border border-rule px-3 text-sm capitalize transition-colors has-checked:border-ink has-checked:bg-ink has-checked:text-paper has-focus-visible:outline-2 has-focus-visible:outline-accent"
-              >
-                <input type="radio" name="role" value={r} checked={role === r} onChange={() => setRole(r)} className="sr-only" />
-                {r}
-              </label>
-            ))}
-          </div>
-          {role === "pengajar" && (
-            <p className="text-sm text-ink-2">Akun pengajar aktif setelah disetujui Admin institusi.</p>
-          )}
-        </fieldset>
+        <input type="hidden" name="role" value={role} />
         <Field label="Nama lengkap" name="displayName" autoComplete="name" required maxLength={80} error={fe?.displayName} defaultValue={state?.values?.displayName} />
         <Field label="Email" name="email" type="email" autoComplete="email" required error={fe?.email} defaultValue={state?.values?.email} />
         <Field
