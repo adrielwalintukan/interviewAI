@@ -462,7 +462,7 @@ export function Stage({ sessionId, endsAt, title, language, character, initialTu
                   maxLength={2000}
                   placeholder="Ketik pertanyaan…"
                   autoComplete="off"
-                  className="min-h-12 min-w-0 flex-1 rounded-sm border border-white/15 bg-stage px-3 text-stage-ink outline-none placeholder:text-stage-ink-2 focus:border-white/50"
+                  className="min-h-12 min-w-0 flex-1 rounded-sm border border-white/15 bg-stage px-3 text-stage-ink placeholder:text-stage-ink-2 focus:border-white/50 focus-visible:outline-2 focus-visible:outline-spot focus-visible:outline-offset-2"
                 />
                 <button type="submit" disabled={!draft.trim() || activity === "thinking"} className="min-h-12 rounded-sm bg-stage-ink px-4 text-sm font-medium text-stage disabled:opacity-40">
                   Kirim

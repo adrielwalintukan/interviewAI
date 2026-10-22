@@ -34,7 +34,7 @@ export function JoinClassForm() {
           autoCapitalize="characters"
           spellCheck={false}
           maxLength={8}
-          className="min-h-11 w-full rounded-sm border border-rule bg-paper px-3 font-mono text-lg uppercase tracking-[0.2em] text-ink outline-none focus:border-ink aria-invalid:border-accent"
+          className="min-h-11 w-full rounded-sm border border-rule bg-paper px-3 font-mono text-lg uppercase tracking-[0.2em] text-ink transition-colors focus:border-ink focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 aria-invalid:border-accent"
           error={state?.fieldErrors?.code}
           defaultValue={state?.values?.code}
         />
@@ -90,7 +90,7 @@ export function BulkStudentsForm({ classId }: { classId: string }) {
             rows={5}
             placeholder={"Budi Santoso,budi.s\nSiti Aminah,siti_01"}
             defaultValue={state?.text}
-            className="rounded-sm border border-rule bg-paper p-3 font-mono text-sm outline-none focus:border-ink"
+            className="rounded-sm border border-rule bg-paper p-3 font-mono text-sm transition-colors focus:border-ink focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
           />
         </div>
         <div className="flex flex-col gap-1.5">

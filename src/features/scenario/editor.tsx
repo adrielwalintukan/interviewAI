@@ -33,7 +33,7 @@ const SECTIONS = [
 ] as const;
 
 const inputCls =
-  "w-full rounded-sm border border-rule bg-paper px-3 py-2.5 text-base text-ink outline-none transition-colors placeholder:text-ink-2/60 focus:border-ink";
+  "w-full rounded-sm border border-rule bg-paper px-3 py-2.5 text-base text-ink transition-colors placeholder:text-ink-2/60 focus:border-ink focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2";
 // Textareas grow with their content (no clipped facts on mobile).
 const areaCls = `${inputCls} field-sizing-content min-h-20 max-h-96`;
 
