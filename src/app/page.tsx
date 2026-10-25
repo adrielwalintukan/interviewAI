@@ -4,7 +4,7 @@ import { buttonClass } from "@/components/ui/button-class";
 // Placeholder landing (tokens + editorial direction). Real landing lands in M5.
 export default function Home() {
   return (
-    <main className="grain mx-auto flex min-h-dvh max-w-6xl flex-col px-4 py-6 sm:px-8 sm:py-10">
+    <div className="grain mx-auto flex min-h-dvh max-w-6xl flex-col px-4 py-6 sm:px-8 sm:py-10">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-sm focus:bg-ink focus:px-4 focus:py-2 focus:text-paper focus:outline-2 focus:outline-accent"
@@ -23,7 +23,7 @@ export default function Home() {
         </nav>
       </header>
 
-      <section id="main-content" tabIndex={-1} className="grid flex-1 content-center gap-10 py-12 md:grid-cols-12 md:py-6">
+      <main id="main-content" tabIndex={-1} className="grid flex-1 content-center gap-10 py-12 md:grid-cols-12 md:py-6">
         <div className="md:col-span-8">
           <p className="mb-6 font-mono text-label uppercase text-accent">Latihan wawancara kebutuhan</p>
           {/* display-xl, also capped by viewport height so the landing fits one screen without scrolling */}
@@ -46,13 +46,13 @@ export default function Home() {
             Ia tidak akan menyebut bahwa kurirnya hanya dua orang, kecuali kamu menanyakannya.
           </p>
         </aside>
-      </section>
+      </main>
 
       <footer className="flex items-center justify-end border-t border-rule pt-4 font-mono text-label uppercase text-ink-2">
         <Link href="/privasi" className="inline-flex min-h-11 items-center px-2 underline-offset-4 hover:text-ink hover:underline">
           Kebijakan Privasi
         </Link>
       </footer>
-    </main>
+    </div>
   );
 }
