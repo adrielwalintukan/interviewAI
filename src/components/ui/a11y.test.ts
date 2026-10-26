@@ -1,5 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { Field, SubmitButton } from "./form";
 import { buttonClass, type ButtonVariant } from "./button-class";
@@ -132,3 +134,53 @@ describe("A11y: Color Contrast Quantitative Validation (WCAG 2.1 AA)", () => {
     expect(contrast(tokens.spot, tokens.stage2)).toBeGreaterThanOrEqual(3.0); // 13.29:1
   });
 });
+
+describe("A11y: Reduced Motion Compliance (docs/design-system.md §4)", () => {
+  const css = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+  const reportCode = readFileSync(resolve(process.cwd(), "src/app/(app)/sesi/[id]/selesai/page.tsx"), "utf8");
+  const avatarCode = readFileSync(resolve(process.cwd(), "src/features/avatar/avatar.tsx"), "utf8");
+  const vrmCode = readFileSync(resolve(process.cwd(), "src/features/avatar/vrm-avatar.tsx"), "utf8");
+
+  it("verifies .stabilo is purely static CSS background without runtime animation or transition (instant final state)", () => {
+    const stabiloBlock = css.match(/@utility stabilo\s*\{([^}]+)\}/)?.[1] ?? "";
+    expect(stabiloBlock).toContain("linear-gradient");
+    expect(stabiloBlock).not.toContain("animation");
+    expect(stabiloBlock).not.toContain("transition");
+    expect(stabiloBlock).not.toContain("@keyframes");
+  });
+
+  it("verifies score report in sesi/[id]/selesai renders directly without count-up animation timers", () => {
+    expect(reportCode).toContain("{graded.score}");
+    expect(reportCode).toContain("tabular-nums");
+    // Ensure no client-side count-up / timer animation modules or intervals are used
+    expect(reportCode).not.toContain("useCountUp");
+    expect(reportCode).not.toContain("setInterval");
+    expect(reportCode).not.toContain("requestAnimationFrame");
+    expect(reportCode).not.toContain("framer-motion");
+    expect(reportCode).not.toContain("motion/react");
+  });
+
+  it("verifies global reduced-motion overrides disable stage transition, spotlight, and all CSS animations", () => {
+    expect(css).toContain("@media (prefers-reduced-motion: reduce)");
+    expect(css).toContain("animation-duration: 0.01ms !important;");
+    expect(css).toContain("transition-duration: 0.01ms !important;");
+    expect(css).toContain("scroll-behavior: auto !important;");
+    expect(css).toMatch(/\.stage-enter\s*\{[^}]*clip-path:\s*none\s*!important/);
+    expect(css).toMatch(/\.spotlight\s*\{[^}]*animation:\s*none\s*!important/);
+  });
+
+  it("verifies 3D VRM Avatar respects prefers-reduced-motion, halting body/nod motion while preserving blink and lip-sync", () => {
+    // avatar.tsx listens to prefers-reduced-motion and passes still prop
+    expect(avatarCode).toContain('const reducedQuery = "(prefers-reduced-motion: reduce)"');
+    expect(avatarCode).toContain("const still = useSyncExternalStore");
+    expect(avatarCode).toContain("<VrmAvatar");
+    expect(avatarCode).toContain("still={still}");
+
+    // vrm-avatar.tsx halts sway, breathing, and nod when still === true
+    expect(vrmCode).toContain("if (!still) {");
+    expect(vrmCode).toContain('const head = vrm.humanoid.getNormalizedBoneNode("head");');
+    expect(vrmCode).toContain("head?.rotation.set(n.x, n.y, n.z);");
+    expect(vrmCode).toContain('vrm.humanoid.getNormalizedBoneNode("chest")?.rotation.set(n.chest, 0, 0);');
+  });
+});
+
