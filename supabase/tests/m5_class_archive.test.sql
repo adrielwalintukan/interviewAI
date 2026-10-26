@@ -1,6 +1,6 @@
 begin;
 
-select plan(10);
+select plan(12);
 
 -- Setup synthetic users (engineering-standard §6)
 set local role postgres;
@@ -66,7 +66,25 @@ select is(
   'archived_at is restored to null upon unarchive'
 );
 
--- 4. Another teacher (non-owner) is rejected
+-- 4. Non-existent class ID is rejected with 42501 and existing classes are untouched
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000aa1","role":"authenticated"}', true);
+
+select throws_ok(
+  $$ select public.set_class_archived('99999999-9999-4999-a999-999999999999', true) $$,
+  '42501',
+  null,
+  'non-existent class throws 42501'
+);
+
+set local role postgres;
+select is(
+  (select archived_at from public.classes where id = '00000000-0000-0000-0000-000000000cc1'),
+  null,
+  'existing class archived_at remains null after non-existent class call'
+);
+
+-- 5. Another teacher (non-owner) is rejected
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000aa2","role":"authenticated"}', true);
 
@@ -77,7 +95,7 @@ select throws_ok(
   'non-owner teacher cannot archive class'
 );
 
--- 5. Student is rejected
+-- 6. Student is rejected
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000bb1","role":"authenticated"}', true);
 
 select throws_ok(
@@ -87,7 +105,7 @@ select throws_ok(
   'student cannot archive class'
 );
 
--- 6. Anonymous caller is rejected
+-- 7. Anonymous caller is rejected
 set local role anon;
 
 select throws_ok(

@@ -10,6 +10,7 @@ language plpgsql volatile security definer set search_path = ''
 as $$
 declare
   v_archived_at timestamptz;
+  v_updated_id uuid;
 begin
   if not public.is_class_owner(p_class_id) then
     raise exception 'not class owner' using errcode = '42501';
@@ -19,7 +20,12 @@ begin
 
   update public.classes
   set archived_at = v_archived_at
-  where id = p_class_id;
+  where id = p_class_id and owner_id = auth.uid()
+  returning id into v_updated_id;
+
+  if v_updated_id is null then
+    raise exception 'not class owner' using errcode = '42501';
+  end if;
 
   return v_archived_at;
 end;

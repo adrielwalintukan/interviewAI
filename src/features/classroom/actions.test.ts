@@ -48,8 +48,23 @@ describe("archiveClass & unarchiveClass", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/dashboard");
   });
 
-  it("throws error when RPC fails", async () => {
+  it("throws error when RPC fails on archiveClass", async () => {
     rpc.mockResolvedValueOnce({ data: null, error: { message: "database error" } });
     await expect(archiveClass(form(validClassId))).rejects.toThrow("Gagal mengarsipkan kelas.");
+  });
+
+  it("throws error when RPC fails on unarchiveClass", async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { message: "database error" } });
+    await expect(unarchiveClass(form(validClassId))).rejects.toThrow("Gagal membuka arsip kelas.");
+  });
+
+  it("rejects invalid classId format on archiveClass", async () => {
+    await expect(archiveClass(form("invalid-uuid"))).rejects.toThrow();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid classId format on unarchiveClass", async () => {
+    await expect(unarchiveClass(form("invalid-uuid"))).rejects.toThrow();
+    expect(rpc).not.toHaveBeenCalled();
   });
 });
