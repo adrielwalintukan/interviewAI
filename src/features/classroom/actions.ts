@@ -53,28 +53,20 @@ export async function regenerateJoinCode(form: FormData): Promise<void> {
 }
 
 export async function archiveClass(form: FormData): Promise<void> {
-  const user = await requireUser({ roles: ["pengajar"] });
+  await requireUser({ roles: ["pengajar"] });
   const classId = z.uuid().parse(form.get("classId"));
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("classes")
-    .update({ archived_at: new Date().toISOString() })
-    .eq("id", classId)
-    .eq("owner_id", user.id);
+  const { error } = await supabase.rpc("set_class_archived", { p_class_id: classId, p_archived: true });
   if (error) throw new Error("Gagal mengarsipkan kelas.");
   revalidatePath(`/kelas/${classId}`);
   revalidatePath("/dashboard");
 }
 
 export async function unarchiveClass(form: FormData): Promise<void> {
-  const user = await requireUser({ roles: ["pengajar"] });
+  await requireUser({ roles: ["pengajar"] });
   const classId = z.uuid().parse(form.get("classId"));
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("classes")
-    .update({ archived_at: null })
-    .eq("id", classId)
-    .eq("owner_id", user.id);
+  const { error } = await supabase.rpc("set_class_archived", { p_class_id: classId, p_archived: false });
   if (error) throw new Error("Gagal membuka arsip kelas.");
   revalidatePath(`/kelas/${classId}`);
   revalidatePath("/dashboard");

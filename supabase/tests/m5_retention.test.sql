@@ -39,8 +39,8 @@ insert into public.evaluations (session_id, ai_result, ai_score, final_score, gr
 -- Only the service role (and pg_cron, as postgres) may run it
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000ca1","role":"authenticated"}', true);
--- The owner reopens the class archived 13 months ago (unarchiveClass: archived_at = null), as the app does.
-update public.classes set archived_at = null where id = '00000000-0000-0000-0000-000000000c04';
+-- The owner reopens the class archived 13 months ago (unarchiveClass via set_class_archived).
+select public.set_class_archived('00000000-0000-0000-0000-000000000c04', false);
 select throws_ok($$ select public.purge_archived_class_sessions() $$, '42501', null, 'authenticated cannot purge');
 set local role anon;
 select throws_ok($$ select public.purge_archived_class_sessions() $$, '42501', null, 'anon cannot purge');
@@ -72,10 +72,10 @@ select results_eq(
   $$ values (null::uuid, 'purge_archived_sessions', '2') $$,
   'audit_log records only the count, no actor, no personal data');
 
--- Archived again today (archiveClass: archived_at = now()): retention restarts from the latest archive.
+-- Archived again today (archiveClass via set_class_archived): retention restarts from the latest archive.
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000ca1","role":"authenticated"}', true);
-update public.classes set archived_at = now() where id = '00000000-0000-0000-0000-000000000c04';
+select public.set_class_archived('00000000-0000-0000-0000-000000000c04', true);
 set local role postgres;
 select ok((select archived_at > now() - interval '1 minute' from public.classes where id = '00000000-0000-0000-0000-000000000c04'), 'owner re-archived the class: archived_at is the new date');
 
