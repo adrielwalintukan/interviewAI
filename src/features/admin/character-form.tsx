@@ -5,7 +5,8 @@ import { Field, SubmitButton } from "@/components/ui/form";
 import { saveCharacter } from "./actions";
 import { GEMINI_VOICES, GENDER_LABEL, type CharacterRow } from "./characters";
 
-const selectClass = "min-h-11 rounded-sm border border-rule bg-paper px-3 text-base text-ink outline-none focus:border-ink";
+const selectClass =
+  "min-h-11 rounded-sm border border-rule bg-paper px-3 text-base text-ink focus:border-ink focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2";
 const labelClass = "font-mono text-label uppercase text-ink-2";
 
 /** US-A-03: one form for "add" (no character) and "edit" (id fixed: scenarios point at it). */

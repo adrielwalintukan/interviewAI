@@ -54,6 +54,9 @@
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
   }
+  .stage :focus-visible {
+    outline-color: var(--color-spot);
+  }
   ::selection {
     background: var(--color-highlight);
     color: var(--color-ink);
@@ -95,6 +98,14 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  .stage-enter {
+    clip-path: none !important;
+    animation: none !important;
+  }
+  .spotlight {
+    animation: none !important;
   }
 }
 

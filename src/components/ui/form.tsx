@@ -40,7 +40,7 @@ export function Field({
         name={name}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
-        className="min-h-11 rounded-sm border border-rule bg-paper px-3 text-base text-ink outline-none transition-colors placeholder:text-ink-2/60 focus:border-ink aria-invalid:border-accent"
+        className="min-h-11 rounded-sm border border-rule bg-paper px-3 text-base text-ink transition-colors placeholder:text-ink-2/60 focus:border-ink focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 aria-invalid:border-accent"
         {...input}
       />
       {hint && (
