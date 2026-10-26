@@ -194,7 +194,7 @@ erDiagram
 | Tabel | Kolom penting |
 |---|---|
 | `profiles` | `id` (= auth.users.id), `role` (`admin`/`pengajar`/`pelajar`), `status` (`active`/`pending`/`disabled`), `display_name`, `username`, `must_change_password`, `mic_consent_at` |
-| `classes` | `id`, `owner_id`, `name`, `join_code` (unique), `archived_at` |
+| `classes` | `id`, `owner_id`, `name`, `join_code` (unique), `archived_at` (ditulis hanya lewat RPC `set_class_archived`) |
 | `class_members` | `class_id`, `user_id`, `joined_at`. PK gabungan |
 | `characters` | `id` (slug), `name`, `occupation`, `age_range`, `gender`, `live_voice` (suara melekat di karakter; salah satu dari 30 suara prebuilt Gemini, daftar terverifikasi di `features/admin/characters.ts`), `portrait_hue`, `vrm_path` (nama file di bucket Storage `characters`; diisi migrasi untuk 6 preset), `active`, `sort`. Seed 6 karakter. Dikelola Admin di halaman `/karakter` (menu "Karakter", US-A-03); tidak ada hapus permanen |
 | `scenarios` | `id`, `author_id`, `title`, `draft` (jsonb, autosave editor, hanya penulis), `is_public` (hanya bila sudah terbit), `current_version_id` |
@@ -245,7 +245,7 @@ Nilai terbaik per tugas tidak disimpan sebagai kolom. Nilai ini dihitung lewat v
 | `scenario_version_secrets` | **tidak ada akses** | skenario buatannya | semua |
 | `scenario_versions` (brief) | versi yang ditugaskan ke kelasnya + versi publik terkini | buatannya + yang ditugaskan + publik terkini | semua |
 | `assignments` | kelas yang diikuti | kelas miliknya (buat/ubah/hapus) | semua |
-| `classes` | kelas yang diikuti | kelas miliknya | semua |
+| `classes` | kelas yang diikuti | kelas miliknya (baca, buat, ubah nama; arsip/buka arsip via RPC `set_class_archived`) | semua |
 | `audit_log` | — | — | baca semua; tulis hanya lewat RPC `delete_student` |
 
 Data yang perlu fakta (persona prompt, grader) dibaca oleh server dengan service role, setelah otorisasi dicek di kode. Detail lengkap: [security-privacy.md](security-privacy.md).
@@ -265,7 +265,7 @@ Mutasi memakai **Server Actions** (tidak ada folder `app/api`). Setiap action me
 | `reviewEvaluation` | `features/grading/actions.ts` | Override level per kriteria + komentar; nilai final dihitung ulang di server (`applyOverride` + `computeScore`) | pengajar pemilik kelas / admin |
 | `regradeSession` | `features/grading/actions.ts` | Nilai ulang sesi `grading_failed` (klaim dulu, LLM jalan lewat `after()`) | pengajar pemilik kelas / admin; pemilik sesi untuk Pustaka & preview |
 | `generateDraft`, `saveDraft`, `publishScenario`, `setScenarioPublic` | `features/scenario/actions.ts` | Generator & editor skenario | pengajar (penulis) |
-| `createClass`, `joinClass`, `bulkCreateStudents`, `createAssignment`, … | `features/classroom/actions.ts` | Kelas, anggota, tugas | sesuai peran |
+| `createClass`, `joinClass`, `archiveClass`, `unarchiveClass`, … | `features/classroom/actions.ts` | Kelas, anggota, tugas (arsip/buka arsip via RPC `set_class_archived`) | sesuai peran |
 | `resetPassword`, `updateUserAccess` | `features/auth`, `features/admin` | Reset password, akses pengguna | admin/pengajar kelas |
 | `deleteStudent` | `features/admin/actions.ts` | Hapus pelajar permanen (US-A-02) lewat RPC `delete_student` | admin |
 | `saveCharacter`, `setCharacterActive` | `features/admin/actions.ts` | Tambah/ubah karakter preset dan aktif/nonaktif (US-A-03); Zod `characterSchema`, tulis dengan service role karena `characters` tidak punya policy tulis | admin |
@@ -278,12 +278,12 @@ Mutasi memakai **Server Actions** (tidak ada folder `app/api`). Setiap action me
 
 **Hapus data pelajar (US-A-02).** Di tabel Akun `/admin`, baris pelajar punya tombol **Hapus data**. Tombol ini membuka dialog yang meminta nama tampilan pelajar diketik ulang. `deleteStudent` (admin, Zod) memanggil RPC `delete_student(p_user_id, p_confirm)` sebagai pemanggil. Fungsi `security definer` itu menolak non-admin (`42501`), diri sendiri, akun yang bukan pelajar, serta konfirmasi yang tidak cocok (`22023`). Setelah itu ia menghapus baris `auth.users` dan menulis `audit_log` dalam **satu transaksi**, sehingga tidak ada penghapusan tanpa catatan. `profiles` dan semua turunannya ikut terhapus cascade: `class_members`, `sessions` → `messages`, `evaluations`, `llm_calls`. Tes pgTAP juga memastikan setiap FK di skema `public` ke `auth.users`/`profiles`/`sessions` bersifat cascade atau set null, termasuk tabel yang ditambahkan nanti. Pengajar tidak bisa dihapus lewat fitur ini, karena kelas dan skenarionya akan ikut terhapus.
 
-**Retensi data (#15, `security-privacy.md §3`).** Job **pg_cron** (Supabase Cron) bernama `monthly-retention` berjalan pukul 03.00 UTC setiap tanggal 1 (`0 3 1 * *`), dibuat di migrasi `20261026000000_retention_job.sql`. Ia memanggil dua fungsi `security definer` (hanya service role / pemilik):
+**Retensi data (#15, #41, `security-privacy.md §3`).** Job **pg_cron** (Supabase Cron) bernama `monthly-retention` berjalan pukul 03.00 UTC setiap tanggal 1 (`0 3 1 * *`), dibuat di migrasi `20261026000000_retention_job.sql`. Ia memanggil dua fungsi `security definer` (hanya service role / pemilik):
 
 - `purge_archived_class_sessions()`: menghapus sesi tugas di kelas dengan `archived_at` lebih dari 1 tahun lalu. Pesan, evaluasi, dan `llm_calls` sesi ikut cascade; kelas, anggota, dan tugasnya tetap. Setiap run dicatat di `audit_log` (`purge_archived_sessions`, `target` = jumlah sesi, `actor_id` null).
 - `purge_llm_calls()`: menghapus `llm_calls` tanpa sesi yang lebih dari 1 tahun.
 
-Pg_cron dipilih, bukan Vercel Cron, karena tidak perlu route maupun secret dan tidak bergantung pada deploy (Vercel Hobby juga hanya menjamin presisi per jam). Riwayat run ada di `cron.job_run_details`. Batasan: sesi yang tugasnya dihapus pengajar (`assignment_id` menjadi null) tidak lagi terhubung ke kelas, sehingga tidak terjangkau job ini.
+Pg_cron dipilih, bukan Vercel Cron, karena tidak perlu route maupun secret dan tidak bergantung pada deploy (Vercel Hobby juga hanya menjamin presisi per jam). Riwayat run ada di `cron.job_run_details`. Celah manipulasi tanggal arsip oleh pengajar (#41) dicegah: izin `update (archived_at)` dicabut dari `authenticated`, dan perubahan `archived_at` wajib melalui RPC `set_class_archived(p_class_id, p_archived)` yang mengecek kepemilikan dan mengikat waktu ke `now()` server atau `null`. Batasan yang tersisa: sesi yang tugasnya dihapus pengajar (`assignment_id` menjadi null) tidak lagi terhubung ke kelas, sehingga tidak terjangkau job ini.
 
 ### 8b. RPC penilaian (M4)
 
