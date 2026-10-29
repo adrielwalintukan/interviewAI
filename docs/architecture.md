@@ -113,6 +113,8 @@ sequenceDiagram
 2. **STT.** Memakai `SpeechRecognition` (Web Speech API) dengan `lang` sesuai bahasa skenario. Kalau browser tidak mendukung, input teks menjadi input utama.
 3. **LLM.** Server action `chatTurn`: server menyimpan giliran pelajar, menyusun prompt persona + riwayat transkrip, memanggil LLM Gateway (`CHAT_MODEL`), lalu menyimpan dan mengembalikan jawaban utuh (tidak di-stream).
 4. **TTS.** Server action `speakLastReply` (`src/features/interview/voice.ts`) membacakan jawaban karakter terakhir yang **sudah tersimpan** di sesi milik pelajar, **sekali per jawaban** lewat RPC `claim_tts` (browser tidak mengirim teks) lewat Gemini TTS (`TTS_MODEL`), dengan `live_voice` karakter yang sama dengan Live. Teks jawaban tampil dulu; audio (PCM 24 kHz; bila model mengirim file WAV utuh, server hanya mengambil chunk `data`, karena header dan chunk C2PA bila diputar terdengar kresek) menyusul ±5–6 detik dan diputar oleh `PcmPlayer` yang sama dengan Live, sehingga lip-sync memakai level audio sungguhan. Bila TTS gagal/kuota habis: teks saja. `speechSynthesis` tidak dipakai: uji 2026-10-14 menunjukkan suara perangkat tanpa id-ID membaca bahasa Indonesia dengan pelafalan Inggris (ADR-002, amandemen).
+   - **Cadangan Deepgram (opsional).** Bila `DEEPGRAM_API_KEY` diisi dan Gemini TTS gagal (429/kuota/5xx/timeout, atau audio yang dikirim tidak bisa diputar), jawaban yang sama dibacakan **Deepgram Flux TTS** (`src/features/interview/deepgram.ts`) dengan suara Indonesia hasil pemetaan `live_voice` → model Flux (`Aoede`→`flux-dewi-id`, `Leda`→`flux-fitri-id`, `Charon`→`flux-teguh-id`, `Orus`→`flux-fajar-id`, `Puck`→`flux-rizky-id`; suara lain memakai gender karakter). Permintaan memakai `encoding=linear16&sample_rate=24000&container=none`, jadi PCM mentah yang diterima `PcmPlayer` tanpa perubahan. Tanpa key, perilaku persis seperti sebelumnya (Gemini → teks saja). Percobaan Gemini dicatat `fallback` (bukan `error`) bila cadangan tersedia, dan percobaan Deepgram dicatat dengan `provider = 'deepgram'`.
+   - **Batas Deepgram.** Hanya untuk mode hemat: suara Live dihasilkan model Gemini, bukan TTS, jadi tidak bisa dialihkan. Suara Indonesia Flux TTS masih **Early Access**: hanya 5 suara (2 perempuan, 3 laki-laki) dan belum ada normalisasi teks, sehingga angka/tanggal/singkatan dibaca apa adanya.
    - **Temuan uji Live 2026-10-14:** `gemini-3.8-live` dan `gemini-2.5-flash-native-audio-latest` melafalkan bahasa Indonesia dengan baik tanpa `languageCode`; mengirim `speechConfig.languageCode: "id-ID"` membuat keduanya tidak menjawab. Jadi `languageCode` tidak dikirim.
 
 ### 3.3 Kepercayaan transkrip
@@ -132,7 +134,7 @@ Satu modul `lib/llm/gateway.ts` memakai SDK `openai` dengan `baseURL` yang bisa 
 | Tugas | Utama | Fallback | Model env |
 |---|---|---|---|
 | Suara Live | Gemini Live (key langsung) | Mode hemat (§3.2) | `LIVE_MODEL` |
-| Suara karakter mode hemat | Gemini TTS (key langsung) | Teks saja | `TTS_MODEL` |
+| Suara karakter mode hemat | Gemini TTS (key langsung) | Deepgram Flux TTS (bila `DEEPGRAM_API_KEY` diisi), lalu teks saja | `TTS_MODEL` |
 | Chat persona (fallback mode) | 9router | Gemini | `CHAT_MODEL` / `GEMINI_FALLBACK_MODEL` |
 | Penilaian rubrik | 9router | Gemini | `GRADER_MODEL` / `GEMINI_FALLBACK_MODEL` |
 | Generator skenario | 9router | Gemini | `GRADER_MODEL` |

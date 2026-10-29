@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const SESSION = "00000000-0000-4000-8000-000000000001";
-const state = { session: true as boolean, lastReply: "Selamat pagi." as string | null, configured: true };
+const state = { session: true as boolean, lastReply: "Selamat pagi." as string | null, configured: true, deepgram: false };
 const rpc = vi.fn();
 const logCall = vi.fn(async () => {});
 
@@ -11,10 +11,12 @@ vi.mock("@/lib/env", () => ({
     if (!state.configured) throw new Error("env");
     return { GEMINI_API_KEY: "k", TTS_MODEL: "tts-model" };
   },
+  // No Deepgram key by default: Gemini is the only voice, as before this feature existed.
+  deepgramEnv: () => (state.deepgram ? { DEEPGRAM_API_KEY: "dg" } : null),
 }));
 vi.mock("@/lib/llm/log", async (orig) => ({ ...(await orig<typeof import("@/lib/llm/log")>()), logLlmCall: logCall }));
 vi.mock("./context", () => ({
-  loadOwnActiveSession: async () => (state.session ? { supabase: { rpc }, voice: "Aoede" } : null),
+  loadOwnActiveSession: async () => (state.session ? { supabase: { rpc }, voice: "Aoede", gender: "female" } : null),
 }));
 
 const fetchMock = vi.fn();
@@ -54,6 +56,7 @@ beforeEach(() => {
   state.session = true;
   state.lastReply = "Selamat pagi.";
   state.configured = true;
+  state.deepgram = false;
   logCall.mockClear();
   rpc.mockReset().mockImplementation(async () => ({ data: state.lastReply }));
   fetchMock.mockReset().mockResolvedValue(new Response(JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { data: "UENN" } }] } }] })));
@@ -123,5 +126,68 @@ describe("speakLastReply", () => {
     expect(await speakLastReply(SESSION)).toEqual({ audio: null });
     fetchMock.mockRejectedValue(new Error("timeout"));
     expect(await speakLastReply(SESSION)).toEqual({ audio: null });
+  });
+
+  describe("Deepgram backup (DEEPGRAM_API_KEY set)", () => {
+    const pcm = Buffer.from([4, 0, 5, 0]);
+
+    it("keeps Gemini as the voice while it works: no Deepgram request at all", async () => {
+      state.deepgram = true;
+      expect(await speakLastReply(SESSION)).toEqual({ audio: "UENN" });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(logCall).toHaveBeenCalledWith(expect.objectContaining({ provider: "gemini", status: "ok" }));
+    });
+
+    it("speaks the same reply with the character's Deepgram voice when Gemini is rate-limited", async () => {
+      state.deepgram = true;
+      fetchMock
+        .mockResolvedValueOnce(new Response("{}", { status: 429 }))
+        .mockResolvedValueOnce(new Response(pcm, { headers: { "Content-Type": "audio/l16;rate=24000" } }));
+
+      expect(await speakLastReply(SESSION)).toEqual({ audio: pcm.toString("base64") });
+
+      const [url, init] = fetchMock.mock.calls[1] as [string, RequestInit];
+      expect(url).toContain("model=flux-dewi-id");
+      expect(url).toContain("encoding=linear16");
+      expect(url).toContain("sample_rate=24000");
+      expect(url).toContain("container=none"); // raw PCM: no RIFF header to crackle in PcmPlayer
+      expect((init.headers as Record<string, string>).Authorization).toBe("Token dg");
+      expect(JSON.parse(init.body as string)).toEqual({ text: "Selamat pagi." });
+      // The failed Gemini attempt is a `fallback` row, not `error`: another provider was tried.
+      expect(logCall).toHaveBeenCalledWith(expect.objectContaining({ provider: "gemini", status: "fallback" }));
+      expect(logCall).toHaveBeenCalledWith(expect.objectContaining({ provider: "deepgram", model: "flux-dewi-id", status: "ok" }));
+    });
+
+    it("also takes over when Gemini answers with audio that isn't playable", async () => {
+      state.deepgram = true;
+      fetchMock
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { data: wav({ pcm: Buffer.from([1, 0]), rate: 44100 }).toString("base64") } }] } }] })),
+        ) // unusable WAV (44.1 kHz) ⇒ pcmOf returns null
+        .mockResolvedValueOnce(new Response(pcm));
+      expect(await speakLastReply(SESSION)).toEqual({ audio: pcm.toString("base64") });
+    });
+
+    it("shows text only when Deepgram fails too", async () => {
+      state.deepgram = true;
+      fetchMock.mockResolvedValue(new Response("{}", { status: 503 }));
+      expect(await speakLastReply(SESSION)).toEqual({ audio: null });
+      expect(logCall).toHaveBeenCalledWith(expect.objectContaining({ provider: "deepgram", status: "error" }));
+    });
+
+    it("never plays a RIFF header as audio if Deepgram ignores container=none", async () => {
+      state.deepgram = true;
+      fetchMock
+        .mockResolvedValueOnce(new Response("{}", { status: 429 }))
+        .mockResolvedValueOnce(new Response(new Uint8Array(wav({ pcm }))));
+      expect(await speakLastReply(SESSION)).toEqual({ audio: null });
+    });
+
+    it("still logs Gemini as `error` when no backup is configured", async () => {
+      fetchMock.mockResolvedValue(new Response("{}", { status: 429 }));
+      expect(await speakLastReply(SESSION)).toEqual({ audio: null });
+      expect(logCall).toHaveBeenCalledWith(expect.objectContaining({ provider: "gemini", status: "error" }));
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
   });
 });

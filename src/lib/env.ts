@@ -27,6 +27,11 @@ const ttsSchema = z.object({
   TTS_MODEL: z.string().min(1),
 });
 
+/** Optional: without it the mode-hemat voice stays Gemini-only (no backup provider). */
+const deepgramSchema = z.object({
+  DEEPGRAM_API_KEY: z.string().min(1),
+});
+
 // Parsed lazily so `next build` in CI works without secrets; fails loudly (names only) on first real use.
 function lazy<T extends z.ZodType>(schema: T) {
   let cached: z.infer<T> | undefined;
@@ -48,5 +53,13 @@ export const llmEnv = lazy(llmSchema);
 export const liveEnv = lazy(liveSchema);
 /** Gemini TTS: the character's voice in mode hemat. */
 export const ttsEnv = lazy(ttsSchema);
+/**
+ * Deepgram TTS: the backup voice for mode hemat when Gemini TTS is rate-limited or down.
+ * Optional by design — returns null when the key is absent, so the app keeps working with Gemini only.
+ */
+export const deepgramEnv = (): { DEEPGRAM_API_KEY: string } | null => {
+  const parsed = deepgramSchema.safeParse(process.env);
+  return parsed.success ? parsed.data : null;
+};
 /** Concurrent Live sessions per project before new sessions start in mode hemat (architecture §3.1, §9). */
 export const liveMaxConcurrent = () => Number(process.env.LIVE_MAX_CONCURRENT ?? 5);
