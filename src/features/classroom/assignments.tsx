@@ -48,7 +48,7 @@ export function AssignmentForm({ classId, own, library }: { classId: string; own
         <label htmlFor="versionId" className="font-mono text-label uppercase text-ink-2">
           Skenario
         </label>
-        <select id="versionId" name="versionId" required defaultValue="" className="min-h-11 rounded-sm border border-rule bg-paper px-3 text-base outline-none focus:border-ink">
+        <select id="versionId" name="versionId" required defaultValue="" className="min-h-11 rounded-sm border border-rule bg-paper px-3 text-base focus:border-ink focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2">
           <option value="" disabled>
             Pilih skenario terbit…
           </option>
@@ -80,7 +80,7 @@ export function AssignmentForm({ classId, own, library }: { classId: string; own
         <label htmlFor="clientLevel" className="font-mono text-label uppercase text-ink-2">
           Sikap klien
         </label>
-        <select id="clientLevel" name="clientLevel" required defaultValue="normal" className="min-h-11 rounded-sm border border-rule bg-paper px-3 text-base outline-none focus:border-ink">
+        <select id="clientLevel" name="clientLevel" required defaultValue="normal" className="min-h-11 rounded-sm border border-rule bg-paper px-3 text-base focus:border-ink focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2">
           {CLIENT_LEVELS.map((l) => (
             <option key={l} value={l}>
               {CLIENT_LEVEL_OPTION[l]}

@@ -28,7 +28,7 @@ export function ArchiveClassButton({
       <SubmitButton
         variant="ghost"
         pending={isArchived ? "Membuka arsip…" : "Mengarsipkan…"}
-        className="min-h-9 px-3 text-xs text-ink-2 hover:text-ink"
+        className="min-h-11 px-3 text-xs text-ink-2 hover:text-ink"
       >
         {isArchived ? "Buka arsip kelas" : "Arsipkan kelas"}
       </SubmitButton>
