@@ -78,5 +78,5 @@ export async function loadScenarioContent(versionId: string) {
     facts: secrets.facts,
     rubric: secrets.rubric,
   });
-  return { content, voice: version.characters?.live_voice ?? "Kore" };
+  return { content, voice: version.characters?.live_voice ?? "Kore", gender: version.characters?.gender ?? "female" };
 }

@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 /** One row per provider attempt in `llm_calls` (architecture §4). Metadata only: never prompt or transcript text. */
 export type LlmCall = {
   task: "chat" | "grader" | "generator" | "live" | "tts";
-  provider: "9router" | "gemini";
+  provider: "9router" | "gemini" | "deepgram";
   model: string;
   latencyMs: number;
   /** `busy` / `unconfigured`: Live/TTS request that never reached the provider (no free slot, env not set). */

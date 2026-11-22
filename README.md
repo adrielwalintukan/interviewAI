@@ -115,6 +115,7 @@ Hanya nama variabel. Nilainya disimpan di `.env.local`, yang **tidak pernah** di
 | `GRADER_MODEL` | server | Model penilai rubrik & generator skenario |
 | `LIVE_MODEL` | server | Model Gemini Live (native audio) |
 | `TTS_MODEL` | server | Model Gemini TTS untuk suara karakter di mode hemat (nama suara sama dengan Live) |
+| `DEEPGRAM_API_KEY` | server | Opsional. Key Deepgram Flux TTS sebagai suara cadangan mode hemat bila Gemini TTS kena limit. Tanpa key: Gemini saja |
 | `GEMINI_FALLBACK_MODEL` | server | Model teks Gemini yang dipakai bila 9router gagal |
 | `LIVE_MAX_CONCURRENT` | server | Opsional. Batas sesi Live bersamaan sebelum sesi baru masuk mode hemat (bawaan 5) |
 | `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED` | client | `true` untuk menampilkan tombol login Google (setelah OAuth Client diisi di Supabase) |

@@ -2,9 +2,10 @@
 
 import { z } from "zod";
 import { requireUser } from "@/features/auth/dal";
-import { ttsEnv } from "@/lib/env";
+import { deepgramEnv, ttsEnv } from "@/lib/env";
 import { isTimeoutError, logLlmCall } from "@/lib/llm/log";
 import { loadOwnActiveSession } from "./context";
+import { deepgramModel, speakWithDeepgram } from "./deepgram";
 
 const GEMINI = "https://generativelanguage.googleapis.com";
 
@@ -14,6 +15,8 @@ const GEMINI = "https://generativelanguage.googleapis.com";
  * Takes no text from the browser: only the latest stored character reply of the caller's own active
  * session, at most once per reply (`claim_tts`).
  * Returns base64 raw PCM16 24 kHz mono (WAV header stripped, see `pcmOf`), or null ⇒ the stage shows text only.
+ * When Gemini TTS fails (quota/429/outage), the same reply is retried on Deepgram with the character's
+ * Deepgram voice, so a limit stops the interview from going silent.
  */
 export async function speakLastReply(sessionId: string): Promise<{ audio: string | null }> {
   const user = await requireUser({ roles: ["pelajar", "pengajar"] });
@@ -26,15 +29,32 @@ export async function speakLastReply(sessionId: string): Promise<{ audio: string
   const { data: text } = await ctx.supabase.rpc("claim_tts", { p_session_id: sessionId });
   if (typeof text !== "string" || !text) return { audio: null };
 
+  const fallback = deepgramEnv();
+  const gemini = await speakWithGemini(text, ctx.voice, sessionId, fallback !== null);
+  if (gemini || !fallback) return { audio: gemini };
+
+  const model = deepgramModel(ctx.voice, ctx.gender);
+  const started = Date.now();
+  const { audio, status } = await speakWithDeepgram(text, model, fallback.DEEPGRAM_API_KEY);
+  await logLlmCall({ task: "tts", provider: "deepgram", model, latencyMs: Date.now() - started, status, sessionId });
+  return { audio };
+}
+
+/**
+ * Gemini TTS, the primary voice. `backup` = a backup provider exists, so a failure is logged as `fallback`
+ * (the next provider is tried) instead of `error` (nothing left to try).
+ */
+async function speakWithGemini(text: string, voice: string, sessionId: string, backup: boolean): Promise<string | null> {
   let env: ReturnType<typeof ttsEnv>;
   try {
     env = ttsEnv();
   } catch {
     await logLlmCall({ task: "tts", provider: "gemini", model: "", latencyMs: 0, status: "unconfigured", sessionId });
-    return { audio: null };
+    return null;
   }
   const started = Date.now();
-  const log = (status: "ok" | "error" | "timeout") =>
+  const failed = backup ? ("fallback" as const) : ("error" as const);
+  const log = (status: "ok" | "error" | "timeout" | "fallback") =>
     logLlmCall({ task: "tts", provider: "gemini", model: env.TTS_MODEL, latencyMs: Date.now() - started, status, sessionId });
   try {
     const res = await fetch(`${GEMINI}/v1beta/models/${env.TTS_MODEL}:generateContent`, {
@@ -44,23 +64,23 @@ export async function speakLastReply(sessionId: string): Promise<{ audio: string
         contents: [{ parts: [{ text }] }],
         generationConfig: {
           responseModalities: ["AUDIO"],
-          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: ctx.voice } } },
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
         },
       }),
       signal: AbortSignal.timeout(30_000),
     });
     if (!res.ok) {
-      await log("error");
-      return { audio: null };
+      await log(failed);
+      return null;
     }
     const body = (await res.json()) as { candidates?: { content?: { parts?: { inlineData?: { data?: string } }[] } }[] };
     const data = body.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     const audio = data ? pcmOf(data) : null;
-    await log(audio ? "ok" : "error");
-    return { audio };
+    await log(audio ? "ok" : failed);
+    return audio;
   } catch (err) {
-    await log(isTimeoutError(err) ? "timeout" : "error");
-    return { audio: null };
+    await log(backup ? "fallback" : isTimeoutError(err) ? "timeout" : "error");
+    return null;
   }
 }
 
